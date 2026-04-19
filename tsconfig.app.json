@@ -4,7 +4,10 @@
     "target": "es2023",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "esnext",
-    "types": ["vite/client", "vitest/globals"],
+    // node types are needed for test fixtures that read files via
+    // node:fs and for scripts/fetch-scan.ts. Not bundled into the
+    // client by Vite — this is a type-only include.
+    "types": ["vite/client", "vitest/globals", "node"],
     "skipLibCheck": true,
 
     /* Bundler mode */
