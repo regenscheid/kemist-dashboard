@@ -97,30 +97,22 @@ export async function ensureDomainsSeeded(date: string): Promise<void> {
   }
 }
 
-/**
- * Browser gunzip via the native `DecompressionStream('gzip')`.
- * Supported in Chrome/Edge/Firefox/Safari 16.4+; Node 18+ exposes
- * the same global so it works in Vitest's jsdom env too.
- */
-async function gunzipToText(buffer: ArrayBuffer): Promise<string> {
-  const stream = new Response(buffer).body;
-  if (!stream) throw new Error("fetched body has no stream");
-  const ds = new DecompressionStream("gzip");
-  const text = await new Response(stream.pipeThrough(ds)).text();
-  return text;
-}
-
 export async function loadBatchAsRecords(
   date: string,
   batch_id: string,
 ): Promise<KemistScanResultSchemaV1[]> {
+  // Batches are stored gzipped on disk, but every HTTP server we
+  // pass through (Vite dev, GitHub Pages) auto-sets
+  // `Content-Encoding: gzip` for `.gz` extensions and the browser
+  // decompresses transparently. Calling DecompressionStream manually
+  // here would fail because `res.text()` already returns the plain
+  // NDJSON. Just parse line-by-line.
   const url = dataUrl(`${date}/${batch_id}.jsonl.gz`);
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`fetch ${url}: ${res.status} ${res.statusText}`);
   }
-  const buffer = await res.arrayBuffer();
-  const text = await gunzipToText(buffer);
+  const text = await res.text();
   const records: KemistScanResultSchemaV1[] = [];
   for (const line of text.split("\n")) {
     if (!line.trim()) continue;
