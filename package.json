@@ -3,16 +3,23 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
+    "routes:generate": "node scripts/generate-routes.mjs",
+    "pretypecheck": "node scripts/generate-routes.mjs",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "schema:generate": "node scripts/generate-schema.mjs"
   },
   "dependencies": {
     "@tanstack/react-router": "^1.168.23",
@@ -30,6 +37,7 @@
     "@playwright/test": "^1.59.1",
     "@tailwindcss/vite": "^4.2.2",
     "@tanstack/router-devtools": "^1.166.13",
+    "@tanstack/router-generator": "^1.166.32",
     "@tanstack/router-plugin": "^1.167.22",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -44,6 +52,7 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
     "jsdom": "^29.0.2",
+    "json-schema-to-typescript": "^15.0.4",
     "tailwindcss": "^4.2.2",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.0",

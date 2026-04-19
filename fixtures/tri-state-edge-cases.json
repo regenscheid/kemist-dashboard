@@ -1,0 +1,84 @@
+{
+  "$comment": "Hand-crafted tri-state observations. Each entry exercises one of the six TriStateClass buckets. The value field name (value / offered / supported) rotates so tests exercise extractValue over all four schema shapes.",
+  "observation_bool_affirmative": {
+    "value": true,
+    "method": "probe"
+  },
+  "observation_bool_explicit_negative": {
+    "value": false,
+    "method": "probe"
+  },
+  "observation_bool_not_probed": {
+    "value": null,
+    "method": "not_probed",
+    "reason": "hello_probe_failed:hello_probe_not_run"
+  },
+  "observation_bool_not_applicable": {
+    "value": null,
+    "method": "not_applicable",
+    "reason": "ems_not_defined_for_tls_1_3"
+  },
+  "observation_bool_error": {
+    "value": null,
+    "method": "error",
+    "reason": "unexpected_alert_during_probe: internal_error"
+  },
+  "observation_bool_connection_state_true": {
+    "value": true,
+    "method": "connection_state"
+  },
+  "observation_bool_connection_state_false": {
+    "value": false,
+    "method": "connection_state"
+  },
+  "version_offered_affirmative": {
+    "offered": true,
+    "method": "probe"
+  },
+  "version_offered_negative": {
+    "offered": false,
+    "method": "probe"
+  },
+  "version_offered_not_probed": {
+    "offered": null,
+    "method": "not_probed",
+    "reason": "version_not_in_probe_set"
+  },
+  "group_observation_affirmative": {
+    "supported": true,
+    "method": "probe"
+  },
+  "group_observation_negative": {
+    "supported": false,
+    "method": "probe"
+  },
+  "group_observation_not_probed": {
+    "supported": null,
+    "method": "not_probed",
+    "reason": "aws_lc_rs_no_mlkem1024_support"
+  },
+  "group_observation_error": {
+    "supported": null,
+    "method": "error",
+    "reason": "handshake_aborted_during_group_probe"
+  },
+  "cipher_suite_entry_affirmative": {
+    "name": "TLS13_AES_256_GCM_SHA384",
+    "iana_code": "0x1302",
+    "supported": true,
+    "method": "probe"
+  },
+  "cipher_suite_entry_negative": {
+    "name": "TLS13_CHACHA20_POLY1305_SHA256",
+    "iana_code": "0x1303",
+    "supported": false,
+    "method": "probe"
+  },
+  "cipher_suite_entry_not_probed": {
+    "name": "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+    "iana_code": "0xC02C",
+    "supported": null,
+    "method": "not_probed",
+    "reason": "cipher_probes_did_not_run"
+  }
+}

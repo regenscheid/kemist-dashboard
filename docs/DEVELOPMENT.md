@@ -2,8 +2,12 @@
 
 ## Prerequisites
 
-- **Node 20+** (ideally 20.19+ to match Vite's preferred baseline)
-- **pnpm 10+** (enabled via `corepack enable` or `npm i -g pnpm`)
+- **Node**: version pinned in `.nvmrc` (currently **24**). With nvm:
+  `cd` into the repo and run `nvm use` — it reads `.nvmrc` and
+  switches. Bumping Node is a one-line edit in `.nvmrc`; CI's
+  `actions/setup-node` reads the same file so local and CI stay in
+  lockstep.
+- **pnpm 10+** (enabled via `corepack enable` or `npm i -g pnpm`).
 - **AWS CLI v2** only needed when running the data fetch pipeline
   against live S3. Unit tests, type-check, and build all run offline.
 
@@ -12,9 +16,17 @@
 ```sh
 git clone https://github.com/regenscheid/kemist-dashboard
 cd kemist-dashboard
+nvm use                       # activates Node from .nvmrc
 pnpm install
 pnpm dev                      # http://localhost:5173/
 ```
+
+### Optional: auto-switch Node on `cd`
+
+Add the zsh hook from the
+[nvm README](https://github.com/nvm-sh/nvm#zsh) under "Deeper Shell
+Integration" to `~/.zshrc`. Every `cd` into a project with an
+`.nvmrc` then switches Node automatically.
 
 ## Project layout
 

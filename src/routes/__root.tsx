@@ -33,6 +33,15 @@ function RootLayout() {
           >
             About
           </Link>
+          {import.meta.env.DEV && (
+            <Link
+              to="/dev/tristate"
+              className="text-slate-500 hover:underline [&.active]:font-semibold"
+              title="Tri-state component gallery (dev only)"
+            >
+              dev
+            </Link>
+          )}
         </nav>
       </header>
       <main className="mx-auto max-w-6xl px-6 py-6">

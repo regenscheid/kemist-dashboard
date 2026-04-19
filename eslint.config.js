@@ -22,9 +22,39 @@ export default defineConfig([
       globals: { ...globals.browser, ...globals.node },
     },
     rules: {
-      // The custom no-raw-value-read rule for schema-v1 observation
-      // types (enforcing routing through src/lib/triState.ts) lands in
-      // PR 2 once the helpers exist.
+      // Pattern A guard: forbid direct reads of the tri-state
+      // `value` / `offered` / `supported` fields. The scanner's
+      // tri-state contract is only preserved when you route through
+      // src/lib/triState.ts (isAffirmative, isUnknown, etc.) — a
+      // naked `.value` read on a schema-v1 observation silently
+      // collapses `null` into `false` at a condition site.
+      //
+      // Overrides below re-enable it for the helper module itself,
+      // the generated schema types, tests, and transform code that
+      // legitimately needs the raw field.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "MemberExpression[property.name=/^(value|offered|supported)$/]",
+          message:
+            "Direct .value/.offered/.supported reads on tri-state observations collapse null into false. Route through src/lib/triState.ts (isAffirmative, classify, extractValue).",
+        },
+      ],
+    },
+  },
+  {
+    // Files that legitimately need raw access to the tri-state
+    // fields: the helpers themselves, generated schema types, test
+    // files, and (once PR 3 lands) the scan-transform pipeline.
+    files: [
+      "src/lib/triState.ts",
+      "src/data/schema.ts",
+      "scripts/**/*.{ts,mjs,js}",
+      "**/*.test.{ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-syntax": "off",
     },
   },
   {
