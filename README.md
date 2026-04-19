@@ -37,10 +37,12 @@ output.
 - [Tailwind CSS v4](https://tailwindcss.com/) — utility-first styling
 - Vitest + Playwright — unit + e2e tests
 
-## Quickstart
+## Quickstart — local dev
 
 ```sh
+nvm use                       # activates Node pinned in .nvmrc
 pnpm install
+pnpm fetch:local              # populates public/data/ from fixture
 pnpm dev                      # http://localhost:5173/
 ```
 
@@ -49,14 +51,63 @@ Other scripts:
 ```sh
 pnpm test                     # Vitest (unit tests)
 pnpm test:ui                  # Vitest UI mode
+pnpm e2e                      # Playwright + axe-core a11y tests
 pnpm lint                     # ESLint
 pnpm typecheck                # tsc --noEmit
 pnpm build                    # Vite production build to dist/
 pnpm preview                  # Serve dist/ locally
+pnpm schema:generate          # Regenerate src/data/schema.ts from schemas/output-v1.json
+pnpm fetch:s3                 # Pull latest scan from S3 (needs AWS creds)
 ```
 
 See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for the full toolchain, data
 pipeline, and how to add a route or component.
+
+## Deployment — one-time setup
+
+The site deploys automatically via
+[.github/workflows/deploy.yml](.github/workflows/deploy.yml) every Sunday
+at 04:00 UTC (two hours after the orchestrator scan fires). Setup needed
+once per AWS account:
+
+1. **Provision the reader IAM role** against the orchestrator's AWS
+   account:
+   ```sh
+   ./scripts/bootstrap-dashboard.sh
+   ```
+   Idempotent. Creates `kemist-dashboard-reader` with read-only S3
+   access to the scan corpus and `sns:Publish` on the alerts topic.
+   Prints the role ARN when done.
+
+2. **Enable GitHub Pages** for this repo:
+   - Settings → Pages → Build and deployment → Source: **GitHub Actions**.
+
+3. **Add repo secrets** at
+   `https://github.com/regenscheid/kemist-dashboard/settings/secrets/actions`:
+   - `AWS_DASHBOARD_READER_ROLE_ARN` — ARN from step 1.
+   - `DATA_BUCKET` — e.g.
+     `kemist-fleet-data-<account>-us-east-1`.
+
+4. **Push a commit to main** (or run the workflow manually) to trigger
+   the first deploy.
+
+Build failures (schema mismatch, manifest drift, etc.) publish to the
+`kemist-fleet-alerts` SNS topic — same path as orchestrator failures,
+so on-call operators see them through their existing subscription.
+
+## Scope expansion
+
+v0 scans the CISA federal `.gov` feed only (scope tagging from TLD).
+Adding cohorts is a two-step change:
+
+1. Upstream — update the orchestrator's `refresh_targets` Lambda to
+   pull additional lists into its target set (commercial top-1M,
+   HSTS preload, etc.).
+2. Here — extend `src/data/scope.ts` with a new `Scope` value and
+   update `inferScope()` to map domains to it, OR layer a committed
+   `scopes.yaml` on top of the TLD inference for specific
+   overrides. Filter UIs and charts pick up the new scope
+   automatically from `ScopeAggregates`.
 
 ## Opt-out
 

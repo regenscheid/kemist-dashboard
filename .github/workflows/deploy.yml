@@ -1,0 +1,124 @@
+name: Deploy
+
+on:
+  # Sunday 04:00 UTC — two hours after the kemist-orchestrator
+  # weekly scan fires at 02:00 UTC. 2h is a generous buffer for the
+  # Fargate fan-out + write-manifest to land in S3.
+  schedule:
+    - cron: "0 4 * * SUN"
+  # Manual re-deploys (testing, post-hotfix, scope expansion).
+  workflow_dispatch:
+  # Future-proof: the orchestrator can POST to GitHub's
+  # `repository_dispatch` API on scan success to trigger a near-
+  # immediate publish instead of waiting for the 04:00 UTC cron.
+  repository_dispatch:
+    types: [scan-complete]
+  # Also publish on merges to main so code changes go live without
+  # waiting for the next scan.
+  push:
+    branches: [main]
+
+# One deploy at a time. Subsequent deploys queue and then replace —
+# only the newest commit wins.
+concurrency:
+  group: deploy-pages
+  cancel-in-progress: false
+
+permissions:
+  # OIDC assume-role needs id-token write. Pages needs pages:write
+  # to publish. Everything else defaults to read so a compromised
+  # workflow step can't tamper with the repo.
+  id-token: write
+  contents: read
+  pages: write
+
+env:
+  AWS_REGION: us-east-1
+# pnpm version is pinned via package.json's `packageManager` field;
+# pnpm/action-setup@v4 reads it from there. Duplicating the version
+# here would trip ERR_PNPM_BAD_PM_VERSION.
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      # Named env used for the GitHub Pages deployment target. Enable
+      # Pages in repo settings → "Source: GitHub Actions" so this
+      # target exists.
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      # OIDC assume-role against the `kemist-dashboard-reader` role
+      # provisioned by `scripts/bootstrap-dashboard.sh`. The role
+      # trust policy pins our repo + main branch via StringLike on
+      # the `sub` claim — any other source is rejected.
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DASHBOARD_READER_ROLE_ARN }}
+          role-session-name: kemist-dashboard-gha-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify caller identity (audit trail)
+        run: aws sts get-caller-identity
+
+      # Pull the latest scan from S3, run HARD/SOFT consistency
+      # checks, emit `public/data/<date>/…` artifacts. Exits 2 on
+      # hard failure — the subsequent SNS publish surfaces that.
+      - name: Fetch latest scan
+        id: fetch
+        env:
+          DATA_BUCKET: ${{ secrets.DATA_BUCKET }}
+        run: pnpm fetch:s3
+
+      - name: Build site
+        run: pnpm build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
+
+      # Success SNS publish — lightweight breadcrumb so operators
+      # subscribed to the kemist-fleet-alerts topic know a fresh
+      # site went live. Separate from the failure alert below; we
+      # don't want success noise to drown real incidents, so this
+      # step is `if: success()` AND uses a distinct subject line.
+      - name: Notify success
+        if: success() && github.event_name == 'schedule'
+        run: |
+          aws sns publish \
+            --topic-arn "arn:aws:sns:${AWS_REGION}:$(aws sts get-caller-identity --query Account --output text):kemist-fleet-alerts" \
+            --subject "kemist-dashboard: weekly deploy succeeded" \
+            --message "Deployed $(date -u +%Y-%m-%dT%H:%M:%SZ) from commit ${{ github.sha }}"
+
+      # Failure SNS publish. Runs on any prior-step failure via the
+      # `failure()` status function. Message includes the run URL so
+      # the on-call can open logs directly from their email.
+      - name: Notify failure
+        if: failure()
+        run: |
+          aws sns publish \
+            --topic-arn "arn:aws:sns:${AWS_REGION}:$(aws sts get-caller-identity --query Account --output text):kemist-fleet-alerts" \
+            --subject "kemist-dashboard: deploy FAILED" \
+            --message "Workflow: ${{ github.workflow }} | Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} | Commit: ${{ github.sha }} | Event: ${{ github.event_name }}"

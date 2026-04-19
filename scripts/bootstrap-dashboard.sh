@@ -56,9 +56,13 @@ echo "    OIDC provider present."
 
 # ---------------------------------------------------------------------
 step "Building trust + permissions policies"
-# Trust policy: assumable only by this specific repo's main branch via
-# the shared OIDC provider. StringLike (not wildcard refs/*) so a push
-# to a different branch can't exfiltrate scan data.
+# Trust policy: assumable only by this specific repo's main branch
+# OR when it's running against the `github-pages` environment
+# (which is what actions/deploy-pages@v4 sets up). Two sub-claim
+# forms are allowed because GitHub Actions rewrites the OIDC sub
+# to include the environment name when an `environment:` block is
+# present, bypassing the branch-based sub. Both forms are still
+# scoped to this repo, so blast radius doesn't change.
 TRUST_POLICY=$(cat <<EOF
 {
   "Version": "2012-10-17",
@@ -72,7 +76,10 @@ TRUST_POLICY=$(cat <<EOF
           "${OIDC_PROVIDER_URL}:aud": "${OIDC_AUDIENCE}"
         },
         "StringLike": {
-          "${OIDC_PROVIDER_URL}:sub": "repo:${GITHUB_REPOSITORY}:ref:refs/heads/${DEFAULT_BRANCH}"
+          "${OIDC_PROVIDER_URL}:sub": [
+            "repo:${GITHUB_REPOSITORY}:ref:refs/heads/${DEFAULT_BRANCH}",
+            "repo:${GITHUB_REPOSITORY}:environment:github-pages"
+          ]
         }
       }
     }
@@ -84,6 +91,7 @@ EOF
 # Permissions: read-only on raw/*, nothing else. Explicitly does not
 # grant access to targets/* (including opt-out.txt) or write
 # anywhere. No KMS.
+ALERTS_TOPIC_ARN="arn:aws:sns:${AWS_REGION}:${ACCOUNT_ID}:kemist-fleet-alerts"
 PERMISSIONS_POLICY=$(cat <<EOF
 {
   "Version": "2012-10-17",
@@ -104,6 +112,12 @@ PERMISSIONS_POLICY=$(cat <<EOF
           "s3:prefix": ["raw/", "raw/*"]
         }
       }
+    },
+    {
+      "Sid": "PublishBuildFailures",
+      "Effect": "Allow",
+      "Action": "sns:Publish",
+      "Resource": "${ALERTS_TOPIC_ARN}"
     }
   ]
 }
