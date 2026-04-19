@@ -49,7 +49,9 @@ export function useAggregates(scanDate: string | null): {
           setLoading(false);
           return;
         }
-        const res = await fetch(dataUrl(`${scanDate}/aggregates.json`));
+        const res = await fetch(dataUrl(`${scanDate}/aggregates.json`), {
+          cache: "no-store",
+        });
         if (!res.ok) {
           throw new Error(
             `fetch aggregates.json: ${res.status} ${res.statusText}`,

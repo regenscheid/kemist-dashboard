@@ -26,6 +26,9 @@ export default defineConfig(({ command }) => ({
     react(),
     tailwind(),
   ],
+  define: {
+    __APP_BUILD_ID__: JSON.stringify(new Date().toISOString()),
+  },
   test: {
     globals: true,
     environment: "jsdom",
