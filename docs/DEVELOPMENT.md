@@ -89,8 +89,14 @@ Keep `pnpm-lock.yaml` committed; CI installs with `--frozen-lockfile`.
 
 - **Vitest** for components + helpers. Every `TriState` variant and
   every aggregate function has a fixture-driven test.
-- **Playwright** for route-level assertions and the deploy-time schema
-  fixture round-trip.
+- **Playwright + axe-core** for a11y smoke tests on each route. The
+  a11y test fails on any critical or serious WCAG 2.1 AA violation.
+  Not wired into CI by default (the browser download is expensive);
+  run locally before PRs touching UI:
+  ```sh
+  pnpm exec playwright install chromium    # one-time, ~300 MB
+  pnpm e2e
+  ```
 - **ESLint rule** (PR 2) blocks direct `.value` reads on
   schema-observation types. This is the guardrail that prevents
   accidental tri-state collapsing.

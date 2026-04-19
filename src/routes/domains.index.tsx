@@ -46,6 +46,12 @@ export const Route = createFileRoute("/domains/")({
         : typeof x === "string" && x.length > 0
           ? x.split(",")
           : [];
+    // Accept `error_category` as a more legible alias of the short
+    // `err` key — lets operators hand out links like
+    //   /domains?error_category=dns_resolution_failed
+    // without having to know the internal param name.
+    const errValues =
+      s.error_category !== undefined ? s.error_category : s.err;
     const asScopes = (x: unknown): Scope[] =>
       arr(x).filter((v): v is Scope =>
         ["federal-gov", "mil", "edu", "commercial", "unknown-tld"].includes(v),
@@ -64,7 +70,7 @@ export const Route = createFileRoute("/domains/")({
       tls: arr(s.tls),
       scope: asScopes(s.scope),
       pqc: asPqc(s.pqc),
-      err: arr(s.err),
+      err: arr(errValues),
       exp: asExpiry(s.exp),
       ...(typeof s.sort === "string" ? { sort: s.sort } : {}),
       ...(typeof s.desc === "boolean" ? { desc: s.desc } : {}),

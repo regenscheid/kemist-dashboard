@@ -1,0 +1,13 @@
+# Public dashboard — indexed on purpose. Scan results for federal
+# .gov domains are transparency data; search discoverability is a
+# feature, not an oversight. If you'd like your specific domain
+# excluded from scans (which will remove it from future pages),
+# see docs/OPT_OUT.md.
+User-agent: *
+Allow: /
+
+# Dev-only component gallery — uncrawlable to keep it out of search
+# indexes. It lives at /dev/tristate and is hidden from the nav in
+# production builds; this is a belt-and-suspenders guard.
+User-agent: *
+Disallow: /dev/
