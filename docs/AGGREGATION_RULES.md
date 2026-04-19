@@ -1,9 +1,9 @@
 # Aggregation rules
 
-The kemist-dashboard's load-bearing Pattern A guarantee: summary
-numbers and chart series never collapse unknown observations into
-negatives. This document is the single canonical reference for *how*
-we aggregate — each summary card's info-icon links here.
+The kemist-dashboard's load-bearing guarantee: summary numbers and
+chart series never collapse unknown observations into negatives.
+This document is the single canonical reference for *how* we
+aggregate — each summary card's info-icon links here.
 
 ## The three-bucket rule
 

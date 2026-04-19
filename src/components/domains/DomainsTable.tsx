@@ -1,8 +1,18 @@
 /**
  * TanStack Table + TanStack Virtual wiring for the filterable
  * domain view. Pure presentational — receives the filtered/sorted
- * row set from the caller. Virtualization lets the page stay fast
- * past ~50k rows.
+ * row set from the caller.
+ *
+ * Layout notes:
+ *   * Uses `table-layout: fixed` + explicit column widths from
+ *     `columnDef.size` so long cipher / issuer strings don't cause
+ *     the browser to auto-resize columns and push rows past their
+ *     fixed 36 px height. That would break the virtualizer's
+ *     position math (it assumes every row is 36 px).
+ *   * Each cell truncates with ellipsis + title attribute, so the
+ *     full value is still discoverable on hover.
+ *   * Total column width sums to ~1600 px; the scroll container
+ *     scrolls horizontally when the viewport is narrower.
  */
 
 import { useMemo, useRef } from "react";
@@ -51,6 +61,14 @@ export function DomainsTable({ rows, sorting, onSortingChange }: Props) {
     overscan: 12,
   });
 
+  // Build the colgroup once — browsers use the first colgroup's
+  // widths to decide the fixed layout before painting rows.
+  const colWidths = useMemo(
+    () => columns.map((c) => c.size ?? 120),
+    [columns],
+  );
+  const totalWidth = colWidths.reduce((sum, w) => sum + w, 0);
+
   return (
     <div
       ref={parentRef}
@@ -58,9 +76,18 @@ export function DomainsTable({ rows, sorting, onSortingChange }: Props) {
     >
       <table
         role="table"
-        className="w-full border-separate border-spacing-0 text-sm"
-        style={{ minWidth: "100%" }}
+        className="border-separate border-spacing-0 text-sm"
+        style={{
+          tableLayout: "fixed",
+          width: `${totalWidth}px`,
+          minWidth: "100%",
+        }}
       >
+        <colgroup>
+          {colWidths.map((w, i) => (
+            <col key={i} style={{ width: `${w}px` }} />
+          ))}
+        </colgroup>
         <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-900">
           {table.getHeaderGroups().map((hg) => (
             <tr key={hg.id}>
@@ -71,7 +98,7 @@ export function DomainsTable({ rows, sorting, onSortingChange }: Props) {
                   <th
                     key={header.id}
                     scope="col"
-                    className="border-b border-slate-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:border-slate-700 dark:text-slate-300"
+                    className="overflow-hidden whitespace-nowrap border-b border-slate-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:border-slate-700 dark:text-slate-300"
                   >
                     {canSort ? (
                       <button
@@ -113,16 +140,20 @@ export function DomainsTable({ rows, sorting, onSortingChange }: Props) {
               <tr
                 key={row.id}
                 data-testid="domains-row"
-                className="absolute left-0 right-0 hover:bg-slate-50 dark:hover:bg-slate-900/50"
+                className="absolute left-0 hover:bg-slate-50 dark:hover:bg-slate-900/50"
                 style={{
                   transform: `translateY(${virtualRow.start}px)`,
                   height: `${ROW_HEIGHT}px`,
+                  width: `${totalWidth}px`,
+                  display: "table",
+                  tableLayout: "fixed",
                 }}
               >
-                {row.getVisibleCells().map((cell) => (
+                {row.getVisibleCells().map((cell, cellIdx) => (
                   <td
                     key={cell.id}
-                    className="border-b border-slate-100 px-3 py-1 align-middle dark:border-slate-800"
+                    className="overflow-hidden border-b border-slate-100 px-3 py-1 align-middle dark:border-slate-800"
+                    style={{ width: `${colWidths[cellIdx]}px` }}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>

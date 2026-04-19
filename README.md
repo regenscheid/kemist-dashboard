@@ -18,12 +18,16 @@ Three views:
   protocol versions probed, cipher suites, key-exchange groups (classical and
   PQC hybrids), extensions, certificate chain, validation, errors.
 
-## Pattern A
+## Observations, not verdicts
 
 This dashboard visualizes observations. It does not grade, rank, or judge.
 Words like "weak", "strong", "insecure", "compliant" never appear in the UI.
 Policy evaluation lives in downstream projects that consume the scanner's JSON
 output.
+
+Every rate is reported as three counts — supported / rejected / unknown —
+never a bare percentage. A server whose configuration we couldn't probe is
+always distinguishable from one that actively rejected the probe.
 
 ## Stack
 
@@ -97,8 +101,8 @@ so on-call operators see them through their existing subscription.
 
 ## Scope expansion
 
-v0 scans the CISA federal `.gov` feed only (scope tagging from TLD).
-Adding cohorts is a two-step change:
+v0 scans the GSA [federal-website-index](https://github.com/GSA/federal-website-index)
+(scope tagging from TLD). Adding cohorts is a two-step change:
 
 1. Upstream — update the orchestrator's `refresh_targets` Lambda to
    pull additional lists into its target set (commercial top-1M,

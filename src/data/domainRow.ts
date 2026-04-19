@@ -6,7 +6,8 @@
  * Load-bearing details:
  * - Every tri-state observation keeps its full `{value, method,
  *   reason?}` shape — never collapsed to a bare boolean. The
- *   dashboard's Pattern A guarantee depends on this.
+ *   observation-only contract (unknowns stay distinguishable from
+ *   rejected) depends on this.
  * - `batch_id` is embedded so the detail view can fetch just the
  *   containing batch without a separate lookup file.
  * - Types like `TriStateObservation` intentionally match the

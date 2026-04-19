@@ -17,8 +17,8 @@ import {
 
 // Render the committed nist.gov fixture through every section and
 // assert that the tri-state rendering is correct. Failure here means
-// a section regressed on Pattern A — e.g. by pretty-printing
-// `not_probed` observations as rejections.
+// a section regressed on the tri-state contract — e.g. by
+// pretty-printing `not_probed` observations as rejections.
 
 const nistRecord: KemistScanResultSchemaV1 = JSON.parse(
   readFileSync(path.join(__dirname, "../../../fixtures/nist-gov.jsonl"), "utf8"),
@@ -90,7 +90,7 @@ describe("<KxGroupsSection>", () => {
     expect(screen.getByText("Other groups")).toBeInTheDocument();
   });
 
-  it("preserves tri-state for not_probed groups (Pattern A)", () => {
+  it("preserves tri-state for not_probed groups (no collapse to rejected)", () => {
     render(<KxGroupsSection groups={nistRecord.tls.groups} />);
     // nist.gov: several groups are not_probed. They must render as
     // "Not probed", never as "Rejected".

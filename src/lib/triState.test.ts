@@ -14,7 +14,8 @@ import {
   toneFor,
 } from "./triState";
 
-// Tri-state helpers are the load-bearing abstraction for Pattern A.
+// Tri-state helpers are the load-bearing abstraction for the
+// observation-only contract (never collapse null into false).
 // Every schema shape (observationBool / versionOffered /
 // groupObservation / cipherSuiteEntry) must flow through these
 // helpers and classify identically. These tests exhaustively

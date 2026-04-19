@@ -33,11 +33,44 @@ export const PQC_HYBRID_GROUPS = [
   "secp384r1MLKEM1024",
 ] as const;
 
+/** Standalone ML-KEM groups (no classical component). */
+export const PQC_STANDALONE_GROUPS = [
+  "MLKEM512",
+  "MLKEM768",
+  "MLKEM1024",
+] as const;
+
+/** Classical ECDH/FFDHE groups kemist knows about. */
+export const CLASSICAL_GROUPS = [
+  "X25519",
+  "X448",
+  "secp256r1",
+  "secp384r1",
+  "secp521r1",
+] as const;
+
+/**
+ * High-level classification of the negotiated KX scheme for a one-
+ * word table column. Returns `null` when no handshake completed.
+ */
+export type KxScheme = "hybrid" | "pq" | "classical" | "other";
+
+export function classifyKxScheme(group: string | null): KxScheme | null {
+  if (!group) return null;
+  if ((PQC_HYBRID_GROUPS as readonly string[]).includes(group)) return "hybrid";
+  if ((PQC_STANDALONE_GROUPS as readonly string[]).includes(group)) return "pq";
+  if ((CLASSICAL_GROUPS as readonly string[]).includes(group)) return "classical";
+  // Unknown group name — e.g. a non-standard experimental hybrid.
+  // Surface it as "other" so the user can see something was
+  // negotiated but our classifier didn't recognize it.
+  return "other";
+}
+
 /**
  * Aggregate tri-state across several group observations to a single
  * hybrid-support summary.
  *
- * Rules (Pattern A: never collapse null into false):
+ * Rules (never collapse null into false):
  *   1. Any probed+true → affirmative
  *   2. All present groups probed+false → explicit_negative
  *   3. Otherwise (any unknown / connection_state) → unknown,

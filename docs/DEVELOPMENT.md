@@ -101,7 +101,7 @@ Keep `pnpm-lock.yaml` committed; CI installs with `--frozen-lockfile`.
   schema-observation types. This is the guardrail that prevents
   accidental tri-state collapsing.
 
-## Pattern A
+## Observations, not verdicts
 
 Never introduce words like `weak`, `strong`, `secure`, `insecure`,
 `compliant`, `recommended` into any UI string. The dashboard records

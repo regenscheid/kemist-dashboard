@@ -22,7 +22,7 @@ export default defineConfig([
       globals: { ...globals.browser, ...globals.node },
     },
     rules: {
-      // Pattern A guard: forbid direct reads of the tri-state
+      // Tri-state guard: forbid direct reads of the tri-state
       // `value` / `offered` / `supported` fields. The scanner's
       // tri-state contract is only preserved when you route through
       // src/lib/triState.ts (isAffirmative, isUnknown, etc.) — a

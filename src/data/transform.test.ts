@@ -107,7 +107,7 @@ describe("aggregateHybridGroups", () => {
     expect(result.method).toBe("probe");
   });
 
-  it("returns unknown when at least one hybrid is unknown (Pattern A: no collapsing)", () => {
+  it("returns unknown when at least one hybrid is unknown (no collapsing into rejected)", () => {
     const groups = {
       X25519MLKEM768: { supported: false, method: "probe" },
       secp256r1MLKEM768: { supported: false, method: "probe" },
@@ -167,8 +167,9 @@ describe("DomainRow shape invariants", () => {
       scan_date: "2026-04-19",
       batch_id: "batch-002",
     });
-    // These fields are TriStateObservation objects; a regression that
-    // accidentally flattened them to booleans would break Pattern A.
+    // These fields are TriStateObservation objects; a regression
+    // that flattened them to bare booleans would break the
+    // tri-state contract (unknown ≠ rejected).
     expect(typeof row.pqc_hybrid).toBe("object");
     expect(typeof row.chain_valid).toBe("object");
     expect(typeof row.name_matches_sni).toBe("object");

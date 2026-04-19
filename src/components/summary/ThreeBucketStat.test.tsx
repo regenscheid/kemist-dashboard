@@ -19,9 +19,10 @@ describe("<ThreeBucketStat>", () => {
       />,
     );
     const card = screen.getByRole("group", { name: "PQC hybrid adoption" });
-    // All three bucket counts must be visible — Pattern A guarantee.
-    // "68" appears twice (headline + Supported bucket cell); that's
-    // expected, getAllByText confirms at-least-one presence.
+    // All three bucket counts must be visible — never collapse
+    // unknowns into negatives. "68" appears twice (headline +
+    // Supported bucket cell); that's expected, getAllByText
+    // confirms at-least-one presence.
     expect(within(card).getAllByText("68").length).toBeGreaterThan(0);
     expect(within(card).getByText("1,100")).toBeInTheDocument();
     expect(within(card).getByText("72")).toBeInTheDocument();

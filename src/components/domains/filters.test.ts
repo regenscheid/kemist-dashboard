@@ -54,7 +54,7 @@ describe("matchesFilters", () => {
     expect(matchesFilters(b, filters)).toBe(false);
   });
 
-  it("routes tri-state filter through classifier (Pattern A)", () => {
+  it("routes tri-state filter through classifier (unknown ≠ rejected)", () => {
     const affirm = row({ pqc_hybrid: { value: true, method: "probe" } });
     const negative = row({ pqc_hybrid: { value: false, method: "probe" } });
     const unknown = row({
@@ -65,8 +65,8 @@ describe("matchesFilters", () => {
       },
     });
 
-    // "unknown" selector must not match probe+false (Pattern A
-    // guarantee — never collapse null into false or vice versa).
+    // "unknown" selector must not match probe+false — the tri-state
+    // contract forbids collapsing null into false or vice versa.
     const filters = { ...EMPTY_FILTERS, pqc_hybrid: ["unknown" as const] };
     expect(matchesFilters(affirm, filters)).toBe(false);
     expect(matchesFilters(negative, filters)).toBe(false);

@@ -73,9 +73,9 @@ function AboutRoute() {
         </p>
       </header>
 
-      <section aria-labelledby="about-pattern-a">
+      <section aria-labelledby="about-observations">
         <h2
-          id="about-pattern-a"
+          id="about-observations"
           className="text-xl font-semibold tracking-tight"
         >
           What this site is (and isn't)
@@ -193,9 +193,15 @@ function AboutRoute() {
           Opt-out
         </h2>
         <p className="mt-2">
-          We scan the CISA federal dotgov feed and (soon) other public
-          cohorts. If you own a domain on one of these lists and want
-          it excluded from future scans, file an issue in{" "}
+          The initial scan cohort is the GSA{" "}
+          <a
+            className="underline underline-offset-2"
+            href="https://github.com/GSA/federal-website-index"
+          >
+            federal-website-index
+          </a>
+          . If you own a domain on this list (or on future cohorts we
+          add) and want it excluded from scans, file an issue in{" "}
           <a
             className="underline underline-offset-2"
             href="https://github.com/regenscheid/kemist-orchestrator/issues/new"

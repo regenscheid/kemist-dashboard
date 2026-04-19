@@ -31,7 +31,7 @@ function row(overrides: Partial<DomainRow> = {}): DomainRow {
   };
 }
 
-describe("buildAggregates — Pattern A invariants", () => {
+describe("buildAggregates — tri-state invariants", () => {
   it("always emits three-bucket counts per rate-like card", () => {
     const rows = [
       row({ pqc_hybrid: { value: true, method: "probe" } }),

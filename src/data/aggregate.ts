@@ -2,10 +2,10 @@
  * Build the `<date>/aggregates.json` payload the summary dashboard
  * reads. Pure function over `DomainRow[]`; no I/O.
  *
- * Pattern A guard: every rate-like aggregate is three-bucket
- * (affirmative / explicit_negative / unknown). The three distinct
- * counts are emitted even when a bare percentage would be
- * convenient — see docs/AGGREGATION_RULES.md for the rationale.
+ * Every rate-like aggregate emits three buckets (affirmative /
+ * explicit_negative / unknown). The three distinct counts are
+ * published even when a bare percentage would be convenient — see
+ * docs/AGGREGATION_RULES.md for the rationale.
  */
 
 import type { DomainRow } from "./domainRow";

@@ -4,7 +4,8 @@
  * Mirrors the URL search params schema so route-level code can
  * round-trip state through the URL and pass it here verbatim.
  *
- * Every facet preserves Pattern A:
+ * Every facet preserves the tri-state contract — unknowns stay
+ * distinguishable from rejected:
  *   - `pqc_hybrid: ["affirmative"]` selects ONLY probe+true rows
  *   - `pqc_hybrid: ["unknown"]` selects rows where
  *     isUnknown(row.pqc_hybrid) — never silently includes negatives

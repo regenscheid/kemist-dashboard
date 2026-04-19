@@ -1,10 +1,10 @@
 /**
  * Summary card that surfaces a single tri-state rate.
  *
- * Pattern A guarantee: all three buckets are visible — never a
- * bare percentage. The denominator label is shown so a screenshot
- * of the card is self-explanatory ("68 of 1,200 supported" is
- * different from "68 of 1,200 TLS 1.3 handshakes support hybrid").
+ * All three buckets are visible — never a bare percentage. The
+ * denominator label is shown so a screenshot of the card is
+ * self-explanatory ("68 of 1,200 supported" is different from
+ * "68 of 1,200 TLS 1.3 handshakes support hybrid").
  */
 
 import type { ThreeBucket } from "../../data/aggregate";

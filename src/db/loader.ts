@@ -101,24 +101,54 @@ export async function loadBatchAsRecords(
   date: string,
   batch_id: string,
 ): Promise<KemistScanResultSchemaV1[]> {
-  // Batches are stored gzipped on disk, but every HTTP server we
-  // pass through (Vite dev, GitHub Pages) auto-sets
-  // `Content-Encoding: gzip` for `.gz` extensions and the browser
-  // decompresses transparently. Calling DecompressionStream manually
-  // here would fail because `res.text()` already returns the plain
-  // NDJSON. Just parse line-by-line.
+  // Batches are stored gzipped on disk. Two server behaviors to
+  // accommodate:
+  //   * Vite dev server: detects the .gz extension, returns
+  //     `Content-Encoding: gzip`, the browser auto-decompresses —
+  //     we get plain NDJSON from res.text().
+  //   * GitHub Pages: serves .gz files as raw octets without
+  //     Content-Encoding — we get the gzipped bytes verbatim and
+  //     must decompress manually.
+  //
+  // Sniffing the first two bytes for the gzip magic (1f 8b) is the
+  // reliable way to tell which case we're in without guessing from
+  // response headers, which Pages strips.
   const url = dataUrl(`${date}/${batch_id}.jsonl.gz`);
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`fetch ${url}: ${res.status} ${res.statusText}`);
   }
-  const text = await res.text();
+  const buffer = await res.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  const isGzip = bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
+  const text = isGzip
+    ? await gunzipToText(buffer)
+    : new TextDecoder("utf-8").decode(bytes);
+
   const records: KemistScanResultSchemaV1[] = [];
   for (const line of text.split("\n")) {
     if (!line.trim()) continue;
     records.push(JSON.parse(line) as KemistScanResultSchemaV1);
   }
   return records;
+}
+
+/**
+ * Stream raw gzip bytes through the browser's native
+ * DecompressionStream and return the decompressed UTF-8 text.
+ *
+ * Uses `new Response(bytes).body` to let the browser produce a
+ * properly-typed ReadableStream from the Uint8Array — building one
+ * by hand runs into `ArrayBufferLike` vs `ArrayBuffer` narrowing
+ * friction in current DOM lib types.
+ */
+async function gunzipToText(buffer: ArrayBuffer): Promise<string> {
+  const source = new Response(buffer).body;
+  if (!source) {
+    throw new Error("gunzipToText: synthetic Response body is empty");
+  }
+  const decompressed = source.pipeThrough(new DecompressionStream("gzip"));
+  return new Response(decompressed).text();
 }
 
 /**

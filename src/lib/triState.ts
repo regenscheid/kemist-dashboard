@@ -1,11 +1,11 @@
 /**
  * Canonical tri-state helpers for kemist schema-v1 observations.
  *
- * This module is the single load-bearing abstraction for the
- * dashboard's Pattern A guarantee: affirmative / explicit-negative /
- * unknown are distinguishable everywhere. Raw `.value` / `.offered` /
- * `.supported` reads elsewhere in the codebase are banned by lint
- * rule — route through these helpers.
+ * This module is the single load-bearing abstraction that keeps the
+ * dashboard's tri-state contract intact: affirmative, explicit
+ * negative, and unknown stay distinguishable everywhere. Raw
+ * `.value` / `.offered` / `.supported` reads elsewhere in the
+ * codebase are banned by lint rule — route through these helpers.
  *
  * The scanner emits four related shapes, all following the same
  * contract (value-like field + method + optional reason):

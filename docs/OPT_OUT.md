@@ -32,8 +32,8 @@ Each line is a domain (lowercased) or a `#`-prefixed comment.
 
 On every weekly scan, the `refresh_targets` Lambda:
 
-1. Fetches the CISA federal `.gov` feed (or whichever upstream cohort
-   list applies).
+1. Fetches the GSA [federal-website-index](https://github.com/GSA/federal-website-index)
+   (or whichever upstream cohort list applies).
 2. Reads `opt-out.txt`.
 3. Writes `targets/<date>/filtered.txt` as the set difference.
 
