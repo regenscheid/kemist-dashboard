@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 // PR 5 replaces this with the TanStack Table + TanStack Virtual
 // filterable domain table. Clicking a row navigates to
 // /scans/$date/domains/$target.
-export const Route = createFileRoute("/domains")({
+export const Route = createFileRoute("/domains/")({
   component: DomainsRoute,
 });
 
