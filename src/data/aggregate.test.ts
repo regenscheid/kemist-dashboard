@@ -18,6 +18,7 @@ function row(overrides: Partial<DomainRow> = {}): DomainRow {
     max_supported_tls_version: "TLS 1.3",
     cipher: "TLS13_AES_256_GCM_SHA384",
     kx_group: "X25519",
+    kx_support_types: ["ecc"],
     alpn: "h2",
     pqc_hybrid: { value: false, method: "probe" },
     pqc_signature: false,

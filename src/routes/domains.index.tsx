@@ -19,7 +19,7 @@ import {
   matchesFilters,
   type CertExpiryWindow,
   type Filters,
-  type PqcHybridFilter,
+  type KxSupportFilter,
 } from "../components/domains/filters";
 import { useDomains, useLatestScanDate } from "../db/useDomains";
 
@@ -31,7 +31,7 @@ type DomainsSearch = {
   show_unreachable?: boolean;
   tls?: string[];
   max_tls?: string;
-  pqc?: PqcHybridFilter[];
+  kx?: KxSupportFilter[];
   err?: string[];
   exp?: CertExpiryWindow;
   sort?: string;
@@ -53,9 +53,9 @@ export const Route = createFileRoute("/domains/")({
     // without having to know the internal param name.
     const errValues =
       s.error_category !== undefined ? s.error_category : s.err;
-    const asPqc = (x: unknown): PqcHybridFilter[] =>
-      arr(x).filter((v): v is PqcHybridFilter =>
-        ["affirmative", "explicit_negative", "unknown"].includes(v),
+    const asKx = (x: unknown): KxSupportFilter[] =>
+      arr(x).filter((v): v is KxSupportFilter =>
+        ["pure_pqc", "pqc_hybrid", "ecc", "rsa", "ffdh"].includes(v),
       );
     const asExpiry = (x: unknown): CertExpiryWindow => {
       if (x === "expired" || x === "lt30" || x === "lt90") return x;
@@ -71,7 +71,7 @@ export const Route = createFileRoute("/domains/")({
       ...(typeof s.max_tls === "string" && s.max_tls.length > 0
         ? { max_tls: s.max_tls }
         : {}),
-      pqc: asPqc(s.pqc),
+      kx: asKx(s.kx),
       err: arr(errValues),
       exp: asExpiry(s.exp),
       ...(typeof s.sort === "string" ? { sort: s.sort } : {}),
@@ -89,7 +89,7 @@ function searchToFilters(s: DomainsSearch): Filters {
     show_unreachable: s.show_unreachable ?? false,
     tls_versions: s.tls ?? [],
     max_supported_tls_version: s.max_tls ?? "",
-    pqc_hybrid: s.pqc ?? [],
+    kx_support: s.kx ?? [],
     error_categories: s.err ?? [],
     cert_expiry: s.exp ?? "any",
   };
@@ -107,7 +107,7 @@ function filtersToSearch(f: Filters): Partial<DomainsSearch> {
   if (f.show_unreachable) out.show_unreachable = true;
   if (f.tls_versions.length) out.tls = f.tls_versions;
   if (f.max_supported_tls_version) out.max_tls = f.max_supported_tls_version;
-  if (f.pqc_hybrid.length) out.pqc = f.pqc_hybrid;
+  if (f.kx_support.length) out.kx = f.kx_support;
   if (f.error_categories.length) out.err = f.error_categories;
   if (f.cert_expiry !== "any") out.exp = f.cert_expiry;
   return out;
@@ -162,7 +162,7 @@ function DomainsRoute() {
         delete cleared.show_unreachable;
         delete cleared.tls;
         delete cleared.max_tls;
-        delete cleared.pqc;
+        delete cleared.kx;
         delete cleared.err;
         delete cleared.exp;
         return { ...cleared, ...patch };

@@ -167,6 +167,7 @@ function makeRow(): DomainRow {
     max_supported_tls_version: "TLS 1.3",
     cipher: "TLS_AES_128_GCM_SHA256",
     kx_group: "X25519",
+    kx_support_types: ["ecc"],
     alpn: "h2",
     pqc_hybrid: { value: false, method: "probe" },
     pqc_signature: false,

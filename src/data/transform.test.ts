@@ -55,6 +55,7 @@ describe("toDomainRow", () => {
     expect(row.supported_tls_versions).toContain("TLS 1.2");
     expect(row.supported_tls_versions).toContain("TLS 1.3");
     expect(row.max_supported_tls_version).toBe("TLS 1.3");
+    expect(row.kx_support_types).toContain("ecc");
     expect(row.error_count).toBe(0);
     expect(row.top_error_category).toBeNull();
   });

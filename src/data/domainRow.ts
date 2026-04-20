@@ -16,6 +16,7 @@
  */
 
 import type { Method } from "./schema";
+import type { KxSupportType } from "./kxSupport";
 import type { Scope } from "./scope";
 
 /**
@@ -49,6 +50,8 @@ export type DomainRow = {
   max_supported_tls_version: string | null;
   cipher: string | null;
   kx_group: string | null;
+  /** High-level supported key-exchange families derived from probes. */
+  kx_support_types: KxSupportType[];
   alpn: string | null;
 
   /**

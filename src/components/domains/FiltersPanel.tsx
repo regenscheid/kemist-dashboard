@@ -8,11 +8,12 @@
  * can persist to the URL.
  */
 
+import { KX_SUPPORT_LABELS } from "../../data/kxSupport";
 import type {
   CertExpiryWindow,
   FacetOption,
   Filters,
-  PqcHybridFilter,
+  KxSupportFilter,
 } from "./filters";
 import { EMPTY_FILTERS, isFilterActive } from "./filters";
 
@@ -22,22 +23,12 @@ type Props = {
   options: {
     tls_versions: FacetOption<string>[];
     max_supported_tls_versions: FacetOption<string>[];
+    kx_support: FacetOption<KxSupportFilter>[];
     error_categories: FacetOption<string>[];
   };
   totalResponding: number;
   matchedResponding: number;
   unreachableCount: number;
-};
-
-const PQC_OPTIONS: FacetOption<PqcHybridFilter>[] = [
-  { option: "affirmative", count: 0 },
-  { option: "explicit_negative", count: 0 },
-  { option: "unknown", count: 0 },
-];
-const PQC_LABELS: Record<PqcHybridFilter, string> = {
-  affirmative: "Supported",
-  explicit_negative: "Rejected",
-  unknown: "Unknown",
 };
 
 const EXPIRY_OPTIONS: Array<{ key: CertExpiryWindow; label: string }> = [
@@ -147,11 +138,11 @@ export function FiltersPanel({
       </label>
 
       <FacetBlock
-        title="PQC hybrid"
-        options={PQC_OPTIONS}
-        selected={filters.pqc_hybrid}
-        onToggle={(v) => toggle("pqc_hybrid", v)}
-        labelFor={(v) => PQC_LABELS[v]}
+        title="Key exchange support"
+        options={options.kx_support}
+        selected={filters.kx_support}
+        onToggle={(v) => toggle("kx_support", v)}
+        labelFor={(v) => KX_SUPPORT_LABELS[v]}
       />
 
       <FacetBlock

@@ -4,15 +4,17 @@
  * Mirrors the URL search params schema so route-level code can
  * round-trip state through the URL and pass it here verbatim.
  *
- * Every facet preserves the tri-state contract — unknowns stay
- * distinguishable from rejected:
- *   - `pqc_hybrid: ["affirmative"]` selects ONLY probe+true rows
- *   - `pqc_hybrid: ["unknown"]` selects rows where
- *     isUnknown(row.pqc_hybrid) — never silently includes negatives
+ * State is URL-roundtrippable and every facet keeps simple,
+ * explicit semantics for operators.
  */
 
-import { classify, type TriStateClass } from "../../lib/triState";
 import type { DomainRow } from "../../data/domainRow";
+import {
+  classifyKxCipherSuiteName,
+  classifyKxGroupName,
+  compareKxSupportTypes,
+  type KxSupportType,
+} from "../../data/kxSupport";
 import {
   compareTlsVersionLabels,
   normalizeTlsVersionLabel,
@@ -24,10 +26,7 @@ export type CertExpiryWindow =
   | "lt90"
   | "any";
 
-export type PqcHybridFilter =
-  | "affirmative"
-  | "explicit_negative"
-  | "unknown";
+export type KxSupportFilter = KxSupportType;
 
 export type Filters = {
   /** Free-text substring match on target (host:port). */
@@ -38,7 +37,7 @@ export type Filters = {
   tls_versions: string[];
   /** Single-select highest-supported-version facet. Empty = no filter. */
   max_supported_tls_version: string;
-  pqc_hybrid: PqcHybridFilter[];
+  kx_support: KxSupportFilter[];
   error_categories: string[];
   cert_expiry: CertExpiryWindow;
 };
@@ -48,7 +47,7 @@ export const EMPTY_FILTERS: Filters = {
   show_unreachable: false,
   tls_versions: [],
   max_supported_tls_version: "",
-  pqc_hybrid: [],
+  kx_support: [],
   error_categories: [],
   cert_expiry: "any",
 };
@@ -59,7 +58,7 @@ export function isFilterActive(f: Filters): boolean {
     f.show_unreachable ||
     f.tls_versions.length > 0 ||
     f.max_supported_tls_version.length > 0 ||
-    f.pqc_hybrid.length > 0 ||
+    f.kx_support.length > 0 ||
     f.error_categories.length > 0 ||
     f.cert_expiry !== "any"
   );
@@ -91,9 +90,11 @@ export function matchesFilters(row: DomainRow, f: Filters): boolean {
     const maxSupported = getMaxSupportedTlsVersion(row) ?? "(unknown)";
     if (f.max_supported_tls_version !== maxSupported) return false;
   }
-  if (f.pqc_hybrid.length > 0) {
-    const bucket = tristateBucket(classify(row.pqc_hybrid));
-    if (!f.pqc_hybrid.includes(bucket)) return false;
+  if (f.kx_support.length > 0) {
+    const supported = getKxSupportTypes(row);
+    if (!f.kx_support.some((bucket) => supported.includes(bucket))) {
+      return false;
+    }
   }
   if (f.error_categories.length > 0) {
     const cat = row.top_error_category ?? "(none)";
@@ -103,16 +104,6 @@ export function matchesFilters(row: DomainRow, f: Filters): boolean {
     if (!matchesCertExpiry(row.cert_expiry, f.cert_expiry)) return false;
   }
   return true;
-}
-
-function tristateBucket(clazz: TriStateClass): PqcHybridFilter {
-  if (clazz === "affirmative" || clazz === "connection_state_affirmative") {
-    return "affirmative";
-  }
-  if (clazz === "explicit_negative" || clazz === "connection_state_negative") {
-    return "explicit_negative";
-  }
-  return "unknown";
 }
 
 function matchesCertExpiry(
@@ -152,10 +143,12 @@ export type FacetOption<T> = { option: T; count: number };
 export function buildFacetOptions(rows: DomainRow[]): {
   tls_versions: FacetOption<string>[];
   max_supported_tls_versions: FacetOption<string>[];
+  kx_support: FacetOption<KxSupportFilter>[];
   error_categories: FacetOption<string>[];
 } {
   const tls = new Map<string, number>();
   const maxTls = new Map<string, number>();
+  const kx = new Map<KxSupportFilter, number>();
   const errs = new Map<string, number>();
   for (const row of rows) {
     const supported = getSupportedTlsVersions(row);
@@ -165,6 +158,7 @@ export function buildFacetOptions(rows: DomainRow[]): {
       for (const version of supported) incr(tls, version);
     }
     incr(maxTls, getMaxSupportedTlsVersion(row) ?? "(unknown)");
+    for (const bucket of getKxSupportTypes(row)) incr(kx, bucket);
     incr(errs, row.top_error_category ?? "(none)");
   }
   return {
@@ -173,6 +167,9 @@ export function buildFacetOptions(rows: DomainRow[]): {
       .map(([option, count]) => ({ option, count })),
     max_supported_tls_versions: [...maxTls.entries()]
       .sort((a, b) => compareTlsVersionLabels(a[0], b[0]))
+      .map(([option, count]) => ({ option, count })),
+    kx_support: [...kx.entries()]
+      .sort((a, b) => compareKxSupportTypes(a[0], b[0]))
       .map(([option, count]) => ({ option, count })),
     error_categories: [...errs.entries()]
       .sort((a, b) => b[1] - a[1])
@@ -194,6 +191,17 @@ function getMaxSupportedTlsVersion(row: DomainRow): string | null {
   }
   const supported = getSupportedTlsVersions(row);
   return supported.at(-1) ?? null;
+}
+
+function getKxSupportTypes(row: DomainRow): KxSupportFilter[] {
+  if (Array.isArray(row.kx_support_types) && row.kx_support_types.length > 0) {
+    return [...row.kx_support_types].sort(compareKxSupportTypes);
+  }
+  const fallback = [
+    classifyKxGroupName(row.kx_group),
+    classifyKxCipherSuiteName(row.cipher),
+  ].filter((value): value is KxSupportFilter => value !== null);
+  return [...new Set(fallback)].sort(compareKxSupportTypes);
 }
 
 function incr<K>(map: Map<K, number>, key: K): void {

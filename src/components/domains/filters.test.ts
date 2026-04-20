@@ -21,6 +21,7 @@ function row(overrides: Partial<DomainRow> = {}): DomainRow {
     max_supported_tls_version: "TLS 1.3",
     cipher: "TLS13_AES_256_GCM_SHA384",
     kx_group: "X25519",
+    kx_support_types: ["ecc"],
     alpn: "h2",
     pqc_hybrid: { value: false, method: "probe" },
     pqc_signature: false,
@@ -68,23 +69,18 @@ describe("matchesFilters", () => {
     expect(matchesFilters(b, filters)).toBe(false);
   });
 
-  it("routes tri-state filter through classifier (unknown ≠ rejected)", () => {
-    const affirm = row({ pqc_hybrid: { value: true, method: "probe" } });
-    const negative = row({ pqc_hybrid: { value: false, method: "probe" } });
-    const unknown = row({
-      pqc_hybrid: {
-        value: null,
-        method: "not_probed",
-        reason: "aws_lc_rs_no_support",
-      },
-    });
+  it("matches key-exchange support categories with ANY-of semantics", () => {
+    const hybrid = row({ kx_support_types: ["pqc_hybrid", "ecc"] });
+    const purePqc = row({ kx_support_types: ["pure_pqc"] });
+    const rsa = row({ kx_support_types: ["rsa"] });
 
-    // "unknown" selector must not match probe+false — the tri-state
-    // contract forbids collapsing null into false or vice versa.
-    const filters = { ...EMPTY_FILTERS, pqc_hybrid: ["unknown" as const] };
-    expect(matchesFilters(affirm, filters)).toBe(false);
-    expect(matchesFilters(negative, filters)).toBe(false);
-    expect(matchesFilters(unknown, filters)).toBe(true);
+    const filters = {
+      ...EMPTY_FILTERS,
+      kx_support: ["pqc_hybrid", "rsa"] as typeof EMPTY_FILTERS.kx_support,
+    };
+    expect(matchesFilters(hybrid, filters)).toBe(true);
+    expect(matchesFilters(rsa, filters)).toBe(true);
+    expect(matchesFilters(purePqc, filters)).toBe(false);
   });
 
   it("matches supported-version filters even when the negotiated version is newer", () => {
@@ -163,7 +159,7 @@ describe("isFilterActive", () => {
   it("returns true for any single non-empty facet", () => {
     expect(isFilterActive({ ...EMPTY_FILTERS, q: "nist" })).toBe(true);
     expect(
-      isFilterActive({ ...EMPTY_FILTERS, pqc_hybrid: ["affirmative"] }),
+      isFilterActive({ ...EMPTY_FILTERS, kx_support: ["pqc_hybrid"] }),
     ).toBe(true);
     expect(isFilterActive({ ...EMPTY_FILTERS, cert_expiry: "lt30" })).toBe(true);
   });
@@ -180,8 +176,12 @@ describe("buildFacetOptions", () => {
     const tlsCounts = Object.fromEntries(
       options.tls_versions.map((s) => [s.option, s.count]),
     );
+    const kxCounts = Object.fromEntries(
+      options.kx_support.map((s) => [s.option, s.count]),
+    );
     expect(tlsCounts["TLS 1.3"]).toBe(3);
     expect(tlsCounts["TLS 1.2"]).toBe(3);
+    expect(kxCounts["ecc"]).toBe(3);
   });
 
   it("treats absent fields as explicit buckets", () => {

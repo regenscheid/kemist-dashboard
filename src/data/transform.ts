@@ -11,6 +11,12 @@ import type { KemistScanResultSchemaV1 } from "./schema";
 import type { DomainRow, TriStateObservation } from "./domainRow";
 import { inferScope } from "./scope";
 import {
+  deriveKxSupportTypes,
+  ECC_GROUPS,
+  PQC_HYBRID_GROUPS,
+  PQC_STANDALONE_GROUPS,
+} from "./kxSupport";
+import {
   deriveMaxSupportedTlsVersion,
   deriveSupportedTlsVersions,
 } from "./tlsVersions";
@@ -20,38 +26,10 @@ import {
   type TriStateInput,
 } from "../lib/triState";
 
-/**
- * The set of PQC hybrid groups we consider "PQC hybrid support"
- * across. Kept as a committed set so the aggregate semantics are
- * stable and reviewable.
- *
- * ML-KEM-only groups (MLKEM512 / MLKEM768 / MLKEM1024) are
- * separately trackable as `pqc_signature`-style scalar fields in
- * future iterations; we bucket hybrids separately because they
- * represent the "classical + PQC" deployment posture most orgs
- * describe as their first-wave rollout.
- */
-export const PQC_HYBRID_GROUPS = [
-  "X25519MLKEM768",
-  "secp256r1MLKEM768",
-  "secp384r1MLKEM1024",
-] as const;
+export { PQC_HYBRID_GROUPS, PQC_STANDALONE_GROUPS } from "./kxSupport";
 
-/** Standalone ML-KEM groups (no classical component). */
-export const PQC_STANDALONE_GROUPS = [
-  "MLKEM512",
-  "MLKEM768",
-  "MLKEM1024",
-] as const;
-
-/** Classical ECDH/FFDHE groups kemist knows about. */
-export const CLASSICAL_GROUPS = [
-  "X25519",
-  "X448",
-  "secp256r1",
-  "secp384r1",
-  "secp521r1",
-] as const;
+/** Classical ECC groups kemist knows about. */
+export const CLASSICAL_GROUPS = ECC_GROUPS;
 
 /**
  * High-level classification of the negotiated KX scheme for a one-
@@ -189,6 +167,7 @@ export function toDomainRow(
     max_supported_tls_version: deriveMaxSupportedTlsVersion(tls.versions_offered),
     cipher: negotiated?.cipher_suite ?? null,
     kx_group: negotiated?.group ?? null,
+    kx_support_types: deriveKxSupportTypes(tls),
     alpn: negotiated?.alpn ?? null,
 
     pqc_hybrid: aggregateHybridGroups(tls.groups.tls1_3),
