@@ -92,7 +92,7 @@ export function ProvenanceStrip({ provenance, buildTimestamp }: Props) {
 function Datum({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline gap-1">
-      <dt className="uppercase tracking-wide text-slate-500 dark:text-slate-500">
+      <dt className="uppercase tracking-wide text-slate-700 dark:text-slate-300">
         {label}
       </dt>
       <dd className="font-medium text-slate-900 dark:text-slate-100">

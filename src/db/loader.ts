@@ -87,7 +87,7 @@ async function clearScanCaches(date: string): Promise<void> {
 
 async function ensureBuildFreshness(): Promise<void> {
   const cached = await db.meta.get(BUILD_META_KEY);
-  if (cached?.value === __APP_BUILD_ID__) return;
+  if (cached?.["value"] === __APP_BUILD_ID__) return;
 
   await clearAllCachedData();
   await db.meta.put({ key: BUILD_META_KEY, value: __APP_BUILD_ID__ });
@@ -110,7 +110,7 @@ export async function loadScansIndex(): Promise<ScansIndexEntry[]> {
   const signature = JSON.stringify(scans);
   const cachedSignature = await db.meta.get(SCANS_INDEX_META_KEY);
 
-  if (cachedSignature?.value !== signature) {
+  if (cachedSignature?.["value"] !== signature) {
     await Promise.all([
       db.scans.clear(),
       db.domains.clear(),
@@ -139,7 +139,7 @@ export async function loadScanManifest(date: string): Promise<ScanEntry> {
   const signatureKey = `${MANIFEST_SIGNATURE_PREFIX}${date}`;
   const cachedSignature = await db.meta.get(signatureKey);
 
-  if (cachedSignature && cachedSignature.value !== signature) {
+  if (cachedSignature && cachedSignature["value"] !== signature) {
     await clearScanCaches(date);
   }
 

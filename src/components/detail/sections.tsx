@@ -9,8 +9,8 @@
  *   ScanMetadataSection     `.scan` + scanner version
  *   ProtocolSupportSection  `.tls.versions_offered` (6 versions)
  *   NegotiatedSection       `.tls.negotiated` (may be absent)
- *   CipherSuitesSection     `.tls.cipher_suites.{tls1_2,tls1_3}` + order
- *   KxGroupsSection         `.tls.groups` (12-entry keyed object)
+ *   CipherSuitesSection     `.tls.cipher_suites.{tls1_0,tls1_1,tls1_2,tls1_3}` + order
+ *   KxGroupsSection         `.tls.groups.{tls1_2,tls1_3}` (per-version keyed objects)
  *   ExtensionsSection       `.tls.extensions`
  *   CertificatesSection     `.certificates.{leaf,chain}`
  *   ValidationSection       `.validation` (3 fields, not collapsed)
@@ -168,11 +168,23 @@ export function CipherSuitesSection({
 }: {
   ciphers: KemistScanResultSchemaV1["tls"]["cipher_suites"];
 }) {
+  const versionGroups = [
+    { title: "TLS 1.3", entries: ciphers.tls1_3 },
+    { title: "TLS 1.2", entries: ciphers.tls1_2 },
+    { title: "TLS 1.1", entries: ciphers.tls1_1 },
+    { title: "TLS 1.0", entries: ciphers.tls1_0 },
+  ].filter((group) => group.entries.length > 0);
+
   return (
     <DetailSection title="Cipher suites" json={ciphers}>
       <div className="space-y-4">
-        <CipherList title="TLS 1.3" entries={ciphers.tls1_3} />
-        <CipherList title="TLS 1.2" entries={ciphers.tls1_2} />
+        {versionGroups.length === 0 ? (
+          <p className="text-sm text-slate-500">No cipher-suite probe data recorded.</p>
+        ) : (
+          versionGroups.map((group) => (
+            <CipherList key={group.title} title={group.title} entries={group.entries} />
+          ))
+        )}
         <FieldGrid>
           <Field
             label="Server enforces order"
@@ -184,6 +196,26 @@ export function CipherSuitesSection({
   );
 }
 
+function ProviderPill({
+  provider,
+}: {
+  provider: "aws_lc_rs" | "openssl" | undefined;
+}) {
+  const isOpenSsl = provider === "openssl";
+  return (
+    <span
+      className={[
+        "rounded border px-1.5 py-0.5 text-[11px] font-medium",
+        isOpenSsl
+          ? "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+          : "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-300",
+      ].join(" ")}
+    >
+      {isOpenSsl ? "OpenSSL" : "aws-lc-rs"}
+    </span>
+  );
+}
+
 function CipherList({
   title,
   entries,
@@ -191,14 +223,6 @@ function CipherList({
   title: string;
   entries: CipherSuiteEntry[];
 }) {
-  if (entries.length === 0) {
-    return (
-      <div>
-        <h3 className="text-sm font-semibold">{title}</h3>
-        <p className="mt-1 text-sm text-slate-500">(no probes run)</p>
-      </div>
-    );
-  }
   return (
     <div>
       <h3 className="text-sm font-semibold">{title}</h3>
@@ -207,20 +231,31 @@ function CipherList({
           <tr>
             <th className="py-1 pr-4 font-medium">Suite</th>
             <th className="py-1 pr-4 font-medium">IANA</th>
+            <th className="py-1 pr-4 font-medium">Source</th>
             <th className="py-1 font-medium">Observation</th>
           </tr>
         </thead>
         <tbody>
-          {entries.map((entry) => (
+          {entries.map((entry, index) => (
             <tr
-              key={entry.iana_code}
+              key={`${entry.iana_code}-${entry.provider ?? "aws_lc_rs"}-${index}`}
               className="border-t border-slate-100 dark:border-slate-800"
             >
               <td className="py-1 pr-4">
-                <code className="text-xs">{entry.name}</code>
+                <div className="flex flex-wrap items-center gap-2">
+                  <code className="text-xs">{entry.name}</code>
+                  {entry.openssl_name && (
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      ({entry.openssl_name})
+                    </span>
+                  )}
+                </div>
               </td>
               <td className="py-1 pr-4">
                 <code className="text-xs">{entry.iana_code}</code>
+              </td>
+              <td className="py-1 pr-4">
+                <ProviderPill provider={entry.provider} />
               </td>
               <td className="py-1">
                 <TriStateText observation={entry} showMethod={false} />
@@ -235,33 +270,73 @@ function CipherList({
 
 // ── KX groups ────────────────────────────────────────────────────
 
+const HYBRID_GROUP_SET = new Set(PQC_HYBRID_GROUPS as readonly string[]);
+
+function sortGroupEntries(
+  groups: Record<string, GroupObservation>,
+): Array<[string, GroupObservation]> {
+  return Object.entries(groups).sort(([left], [right]) => {
+    const leftRank = HYBRID_GROUP_SET.has(left) ? 0 : 1;
+    const rightRank = HYBRID_GROUP_SET.has(right) ? 0 : 1;
+    return leftRank - rightRank || left.localeCompare(right);
+  });
+}
+
 export function KxGroupsSection({
   groups,
 }: {
   groups: KemistScanResultSchemaV1["tls"]["groups"];
 }) {
-  const entries = Object.entries(groups) as Array<
-    [string, GroupObservation]
-  >;
-  const hybrids = entries.filter(([name]) =>
-    (PQC_HYBRID_GROUPS as readonly string[]).includes(name),
-  );
-  const others = entries.filter(
-    ([name]) => !(PQC_HYBRID_GROUPS as readonly string[]).includes(name),
-  );
+  const tls13Entries = sortGroupEntries(groups.tls1_3);
+  const tls12Entries = sortGroupEntries(groups.tls1_2);
+
   return (
     <DetailSection
       title="Key-exchange groups"
-      description="Per-group probes. PQC hybrids are listed first."
+      description="Per-version group probes. TLS 1.3 is shown first; TLS 1.2 carries the FFDHE compatibility results."
       json={groups}
     >
-      {hybrids.length > 0 && (
-        <GroupList title="PQC hybrids" entries={hybrids} />
+      {tls13Entries.length === 0 && tls12Entries.length === 0 ? (
+        <p className="text-sm text-slate-500">No group probe data recorded.</p>
+      ) : (
+        <div className="space-y-4">
+          {tls13Entries.length > 0 && (
+            <GroupList title="TLS 1.3 groups" entries={tls13Entries} />
+          )}
+          {tls12Entries.length > 0 && (
+            <GroupList title="TLS 1.2 groups" entries={tls12Entries} />
+          )}
+        </div>
       )}
-      <div className="mt-4">
-        <GroupList title="Other groups" entries={others} />
-      </div>
     </DetailSection>
+  );
+}
+
+function GroupObservationValue({
+  observation,
+}: {
+  observation: GroupObservation;
+}) {
+  const ignoredOffer =
+    observation.reason === "server_ignored_group_offer_returned_custom_prime";
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <TriStateText observation={observation} showMethod={false} />
+        {observation.provider && <ProviderPill provider={observation.provider} />}
+        {observation.iana_code && (
+          <code className="text-xs text-slate-500 dark:text-slate-400">
+            {observation.iana_code}
+          </code>
+        )}
+      </div>
+      {ignoredOffer && (
+        <span className="inline-flex w-fit items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-900 dark:bg-amber-900/20 dark:text-amber-200">
+          ⚠ server ignored group offer and returned a custom prime
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -278,9 +353,9 @@ function GroupList({
       <FieldGrid>
         {entries.map(([name, obs]) => (
           <Field
-            key={name}
+            key={`${title}-${name}`}
             label={name}
-            value={<TriStateText observation={obs} showMethod={false} />}
+            value={<GroupObservationValue observation={obs} />}
           />
         ))}
       </FieldGrid>

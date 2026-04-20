@@ -32,7 +32,9 @@ describe("<ScanMetadataSection>", () => {
     // getAllByText to allow duplicates.
     expect(screen.getAllByText("nist.gov").length).toBeGreaterThan(0);
     expect(screen.getByText("443")).toBeInTheDocument();
-    expect(screen.getByText(/kemist 0\.1\.0/)).toBeInTheDocument();
+    expect(
+      screen.getByText(`${nistRecord.scanner.name} ${nistRecord.scanner.version}`),
+    ).toBeInTheDocument();
   });
 });
 
@@ -70,11 +72,15 @@ describe("<NegotiatedSection>", () => {
 });
 
 describe("<CipherSuitesSection>", () => {
-  it("lists TLS 1.3 and TLS 1.2 suites with IANA codes", () => {
+  it("lists all per-version cipher sections from the unified schema", () => {
     render(<CipherSuitesSection ciphers={nistRecord.tls.cipher_suites} />);
-    // Real record lists both 1.3 and 1.2 suites.
+    expect(screen.getByText("TLS 1.3")).toBeInTheDocument();
+    expect(screen.getByText("TLS 1.2")).toBeInTheDocument();
+    expect(screen.getByText("TLS 1.1")).toBeInTheDocument();
+    expect(screen.getByText("TLS 1.0")).toBeInTheDocument();
     expect(screen.getByText(/0x1302/)).toBeInTheDocument();
-    expect(screen.getByText(/0xC02C/)).toBeInTheDocument();
+    expect(screen.getAllByText(/AES128-SHA/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/OpenSSL|aws-lc-rs/).length).toBeGreaterThan(0);
   });
 
   it("surfaces server_enforces_order as its own tri-state row", () => {
@@ -84,17 +90,35 @@ describe("<CipherSuitesSection>", () => {
 });
 
 describe("<KxGroupsSection>", () => {
-  it("renders a PQC-hybrids subheading when hybrids are present", () => {
+  it("renders TLS 1.3 and TLS 1.2 group maps in version order", () => {
     render(<KxGroupsSection groups={nistRecord.tls.groups} />);
-    expect(screen.getByText("PQC hybrids")).toBeInTheDocument();
-    expect(screen.getByText("Other groups")).toBeInTheDocument();
+    expect(screen.getByText("TLS 1.3 groups")).toBeInTheDocument();
+    expect(screen.getByText("TLS 1.2 groups")).toBeInTheDocument();
   });
 
   it("preserves tri-state for not_probed groups (no collapse to rejected)", () => {
     render(<KxGroupsSection groups={nistRecord.tls.groups} />);
-    // nist.gov: several groups are not_probed. They must render as
-    // "Not probed", never as "Rejected".
     expect(screen.getAllByText(/Not probed/).length).toBeGreaterThan(0);
+  });
+
+  it("surfaces the ignored-group-offer FFDHE finding as a warning callout", () => {
+    render(
+      <KxGroupsSection
+        groups={{
+          tls1_2: {
+            ffdhe2048: {
+              supported: false,
+              method: "probe",
+              reason: "server_ignored_group_offer_returned_custom_prime",
+              provider: "openssl",
+              iana_code: "0x0100",
+            },
+          },
+          tls1_3: {},
+        }}
+      />,
+    );
+    expect(screen.getByText(/server ignored group offer/i)).toBeInTheDocument();
   });
 });
 

@@ -80,13 +80,15 @@ describe("toDomainRow", () => {
 });
 
 describe("aggregateHybridGroups", () => {
+  type GroupsByName = KemistScanResultSchemaV1["tls"]["groups"]["tls1_3"];
+
   const baseNotProbed = {
     method: "not_probed" as const,
     reason: "aws_lc_rs_no_hybrid_support",
   };
 
   it("returns affirmative if any known hybrid is probe+true", () => {
-    const groups = {
+    const groups: GroupsByName = {
       X25519MLKEM768: { supported: true, method: "probe" },
       secp256r1MLKEM768: { supported: false, method: "probe" },
       secp384r1MLKEM1024: { supported: null, ...baseNotProbed },
@@ -97,7 +99,7 @@ describe("aggregateHybridGroups", () => {
   });
 
   it("returns explicit_negative only when every observed hybrid is probe+false", () => {
-    const groups = {
+    const groups: GroupsByName = {
       X25519MLKEM768: { supported: false, method: "probe" },
       secp256r1MLKEM768: { supported: false, method: "probe" },
       secp384r1MLKEM1024: { supported: false, method: "probe" },
@@ -108,7 +110,7 @@ describe("aggregateHybridGroups", () => {
   });
 
   it("returns unknown when at least one hybrid is unknown (no collapsing into rejected)", () => {
-    const groups = {
+    const groups: GroupsByName = {
       X25519MLKEM768: { supported: false, method: "probe" },
       secp256r1MLKEM768: { supported: false, method: "probe" },
       secp384r1MLKEM1024: { supported: null, ...baseNotProbed },
@@ -120,7 +122,7 @@ describe("aggregateHybridGroups", () => {
   });
 
   it("prefers error > not_probed > not_applicable when mixed unknowns", () => {
-    const groups = {
+    const groups: GroupsByName = {
       X25519MLKEM768: { supported: null, method: "error", reason: "boom" },
       secp256r1MLKEM768: { supported: null, method: "not_probed", reason: "x" },
       secp384r1MLKEM1024: {
@@ -135,7 +137,7 @@ describe("aggregateHybridGroups", () => {
   });
 
   it("returns not_probed with clear reason when none of the hybrids are in the groups map", () => {
-    const result = aggregateHybridGroups({});
+    const result = aggregateHybridGroups({} as GroupsByName);
     expect(result.method).toBe("not_probed");
     expect(result.reason).toBe("no_hybrid_groups_in_probe_set");
   });

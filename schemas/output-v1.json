@@ -75,7 +75,10 @@
         "groups",
         "extensions",
         "downgrade_signaling",
-        "sni_behavior"
+        "sni_behavior",
+        "dh_parameters",
+        "server_key_exchange_signatures",
+        "renegotiation_behavior"
       ],
       "properties": {
         "versions_offered": {
@@ -105,8 +108,10 @@
         },
         "cipher_suites": {
           "type": "object",
-          "required": ["tls1_2", "tls1_3", "server_enforces_order"],
+          "required": ["tls1_0", "tls1_1", "tls1_2", "tls1_3", "server_enforces_order"],
           "properties": {
+            "tls1_0": { "type": "array", "items": { "$ref": "#/$defs/cipherSuiteEntry" } },
+            "tls1_1": { "type": "array", "items": { "$ref": "#/$defs/cipherSuiteEntry" } },
             "tls1_2": { "type": "array", "items": { "$ref": "#/$defs/cipherSuiteEntry" } },
             "tls1_3": { "type": "array", "items": { "$ref": "#/$defs/cipherSuiteEntry" } },
             "server_enforces_order": { "$ref": "#/$defs/observationBool" }
@@ -115,7 +120,18 @@
         },
         "groups": {
           "type": "object",
-          "additionalProperties": { "$ref": "#/$defs/groupObservation" }
+          "required": ["tls1_2", "tls1_3"],
+          "properties": {
+            "tls1_2": {
+              "type": "object",
+              "additionalProperties": { "$ref": "#/$defs/groupObservation" }
+            },
+            "tls1_3": {
+              "type": "object",
+              "additionalProperties": { "$ref": "#/$defs/groupObservation" }
+            }
+          },
+          "additionalProperties": false
         },
         "extensions": {
           "type": "object",
@@ -163,9 +179,10 @@
         },
         "downgrade_signaling": {
           "type": "object",
-          "required": ["fallback_scsv_accepted"],
+          "required": ["fallback_scsv_accepted", "fallback_scsv_enforced"],
           "properties": {
-            "fallback_scsv_accepted": { "$ref": "#/$defs/observationBool" }
+            "fallback_scsv_accepted": { "$ref": "#/$defs/observationBool" },
+            "fallback_scsv_enforced": { "$ref": "#/$defs/observationBool" }
           },
           "additionalProperties": false
         },
@@ -177,6 +194,68 @@
               "type": ["string", "null"],
               "enum": ["same_cert", "different_cert", "rejected", "error", null]
             },
+            "method": { "$ref": "#/$defs/method" },
+            "reason": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "dh_parameters": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dhParametersObservation" }
+        },
+        "server_key_exchange_signatures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/skeSigObservation" }
+        },
+        "renegotiation_behavior": {
+          "type": "object",
+          "required": ["method"],
+          "properties": {
+            "client_initiated_verdict": {
+              "type": ["string", "null"],
+              "enum": ["accepted", "rejected", "not_attempted", "error", null]
+            },
+            "method": { "$ref": "#/$defs/method" },
+            "reason": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "client_auth_request": {
+          "type": ["object", "null"],
+          "required": ["requested", "method"],
+          "properties": {
+            "requested": { "type": "boolean" },
+            "certificate_types": {
+              "type": "array",
+              "items": { "type": "integer", "minimum": 0, "maximum": 255 }
+            },
+            "signature_algorithms": { "type": "array", "items": { "type": "string" } },
+            "ca_distinguished_names": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["raw_der_b64"],
+                "properties": {
+                  "raw_der_b64": { "type": "string" },
+                  "common_name": { "type": "string" },
+                  "organization": { "type": "string" }
+                },
+                "additionalProperties": false
+              }
+            },
+            "oid_filters": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["oid", "values_b64"],
+                "properties": {
+                  "oid": { "type": "string" },
+                  "values_b64": { "type": "array", "items": { "type": "string" } }
+                },
+                "additionalProperties": false
+              }
+            },
+            "alert_on_empty_cert": { "type": ["string", "null"] },
             "method": { "$ref": "#/$defs/method" },
             "reason": { "type": "string" }
           },
@@ -274,7 +353,9 @@
       "properties": {
         "supported": { "type": ["boolean", "null"] },
         "method": { "$ref": "#/$defs/method" },
-        "reason": { "type": "string" }
+        "reason": { "type": "string" },
+        "iana_code": { "type": "string", "pattern": "^0x[0-9A-Fa-f]{4}$" },
+        "provider": { "type": "string", "enum": ["aws_lc_rs", "openssl"] }
       },
       "additionalProperties": false
     },
@@ -286,7 +367,9 @@
         "iana_code": { "type": "string", "pattern": "^0x[0-9A-Fa-f]{4}$" },
         "supported": { "type": ["boolean", "null"] },
         "method": { "$ref": "#/$defs/method" },
-        "reason": { "type": "string" }
+        "reason": { "type": "string" },
+        "openssl_name": { "type": "string" },
+        "provider": { "type": "string", "enum": ["aws_lc_rs", "openssl"] }
       },
       "additionalProperties": false,
       "allOf": [
@@ -299,6 +382,35 @@
           "then": { "properties": { "supported": { "type": "null" } }, "required": ["reason"] }
         }
       ]
+    },
+    "dhParametersObservation": {
+      "type": "object",
+      "required": ["cipher_suite", "prime_bits", "classification", "generator", "prime_sha256", "method"],
+      "properties": {
+        "cipher_suite": { "type": "string" },
+        "prime_bits": { "type": "integer", "minimum": 0 },
+        "classification": {
+          "type": "string",
+          "enum": ["ffdhe2048", "ffdhe3072", "ffdhe4096", "ffdhe6144", "ffdhe8192", "custom"]
+        },
+        "generator": { "type": "integer", "minimum": 0 },
+        "prime_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "prime_raw_hex": { "type": "string", "pattern": "^[0-9a-f]+$" },
+        "method": { "$ref": "#/$defs/method" },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "skeSigObservation": {
+      "type": "object",
+      "required": ["cipher_suite", "signature_algorithm", "method"],
+      "properties": {
+        "cipher_suite": { "type": "string" },
+        "signature_algorithm": { "type": "string" },
+        "method": { "$ref": "#/$defs/method" },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": false
     },
     "certificateFacts": {
       "type": "object",

@@ -206,15 +206,27 @@ async function fetchFromFixture(): Promise<{
   // Uses the real nist.gov record + crafted tri-state edge-case
   // record to simulate a tiny two-record scan. Deterministic.
   const scan_date = "2026-01-02";
-  const fixtureJsonl = await fs.readFile(
+  const fixtureText = await fs.readFile(
     path.join(repoRoot, "fixtures", "nist-gov.jsonl"),
     "utf8",
   );
 
-  const records: KemistScanResultSchemaV1[] = fixtureJsonl
-    .split("\n")
-    .filter((l) => l.trim())
-    .map((l) => JSON.parse(l) as KemistScanResultSchemaV1);
+  const trimmed = fixtureText.trim();
+  const records: KemistScanResultSchemaV1[] = (() => {
+    if (!trimmed) return [];
+
+    try {
+      const parsed = JSON.parse(trimmed) as
+        | KemistScanResultSchemaV1
+        | KemistScanResultSchemaV1[];
+      return Array.isArray(parsed) ? parsed : [parsed];
+    } catch {
+      return trimmed
+        .split("\n")
+        .filter((line) => line.trim())
+        .map((line) => JSON.parse(line) as KemistScanResultSchemaV1);
+    }
+  })();
 
   const batchBody = records.map((r) => JSON.stringify(r)).join("\n") + "\n";
   const bytes = gzipSync(Buffer.from(batchBody, "utf8"));

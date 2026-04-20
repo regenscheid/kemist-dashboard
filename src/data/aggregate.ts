@@ -150,9 +150,10 @@ function buildScopeAggregate(rows: DomainRow[]): ScopeAggregates {
     if (row.pqc_signature) pqcSigYes += 1;
     else pqcSigNo += 1;
 
-    // Distribution buckets — `?? "(unknown)"` so the Unknown bucket
-    // is visible rather than dropping the row. Chart renderers can
-    // style "(unknown)" distinctly.
+    // Distribution buckets — negotiated values only. The unified raw
+    // cipher/group support maps stay in the detail view; summary
+    // charts intentionally remain provider-agnostic. `?? "(unknown)"`
+    // keeps the Unknown bucket visible rather than dropping the row.
     incr(tlsVersions, row.tls_version ?? "(unknown)");
     incr(kxGroups, row.kx_group ?? "(unknown)");
     incr(ciphers, row.cipher ?? "(unknown)");

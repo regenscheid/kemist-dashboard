@@ -15,6 +15,8 @@ export type CipherSuiteEntry = {
   supported: boolean | null;
   method: Method;
   reason?: string;
+  openssl_name?: string;
+  provider?: "aws_lc_rs" | "openssl";
 };
 export type ObservationBool = {
   [k: string]: unknown;
@@ -70,12 +72,19 @@ export interface KemistScanResultSchemaV1 {
       alpn?: string;
     };
     cipher_suites: {
+      tls1_0: CipherSuiteEntry[];
+      tls1_1: CipherSuiteEntry[];
       tls1_2: CipherSuiteEntry[];
       tls1_3: CipherSuiteEntry[];
       server_enforces_order: ObservationBool;
     };
     groups: {
-      [k: string]: GroupObservation;
+      tls1_2: {
+        [k: string]: GroupObservation;
+      };
+      tls1_3: {
+        [k: string]: GroupObservation;
+      };
     };
     extensions: {
       ems: ObservationBool;
@@ -98,12 +107,37 @@ export interface KemistScanResultSchemaV1 {
     };
     downgrade_signaling: {
       fallback_scsv_accepted: ObservationBool;
+      fallback_scsv_enforced: ObservationBool;
     };
     sni_behavior: {
       omitted_probe?: "same_cert" | "different_cert" | "rejected" | "error" | null;
       method: Method;
       reason?: string;
     };
+    dh_parameters: DhParametersObservation[];
+    server_key_exchange_signatures: SkeSigObservation[];
+    renegotiation_behavior: {
+      client_initiated_verdict?: "accepted" | "rejected" | "not_attempted" | "error" | null;
+      method: Method;
+      reason?: string;
+    };
+    client_auth_request?: {
+      requested: boolean;
+      certificate_types?: number[];
+      signature_algorithms?: string[];
+      ca_distinguished_names?: {
+        raw_der_b64: string;
+        common_name?: string;
+        organization?: string;
+      }[];
+      oid_filters?: {
+        oid: string;
+        values_b64: string[];
+      }[];
+      alert_on_empty_cert?: string | null;
+      method: Method;
+      reason?: string;
+    } | null;
   };
   certificates: {
     leaf?: CertificateFacts;
@@ -135,6 +169,24 @@ export interface VersionOffered {
 }
 export interface GroupObservation {
   supported: boolean | null;
+  method: Method;
+  reason?: string;
+  iana_code?: string;
+  provider?: "aws_lc_rs" | "openssl";
+}
+export interface DhParametersObservation {
+  cipher_suite: string;
+  prime_bits: number;
+  classification: "ffdhe2048" | "ffdhe3072" | "ffdhe4096" | "ffdhe6144" | "ffdhe8192" | "custom";
+  generator: number;
+  prime_sha256: string;
+  prime_raw_hex?: string;
+  method: Method;
+  reason?: string;
+}
+export interface SkeSigObservation {
+  cipher_suite: string;
+  signature_algorithm: string;
   method: Method;
   reason?: string;
 }

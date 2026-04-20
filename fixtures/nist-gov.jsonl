@@ -1,1 +1,599 @@
-{"schema_version":"1.0.0","scanner":{"name":"kemist","version":"0.1.0"},"capabilities":{"enabled_features":[],"rustls_version":"0.23","aws_lc_rs_version":"bundled","native_tls_version":"0.2","provider_cipher_suites":["TLS13_AES_256_GCM_SHA384","TLS13_AES_128_GCM_SHA256","TLS13_CHACHA20_POLY1305_SHA256","TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384","TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256","TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256","TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384","TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256","TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256"],"provider_kx_groups":["X25519MLKEM768","secp256r1MLKEM768","X25519","secp256r1","secp384r1","MLKEM768"],"config_paths":[],"probe_limitations":[]},"scan":{"target":"nist.gov:443","host":"nist.gov","port":443,"sni_sent":"nist.gov","resolved_ip":"172.65.90.27","started_at":"2026-04-19T02:57:10.014857783Z","completed_at":"2026-04-19T02:57:13.022848582Z","duration_ms":3007},"tls":{"versions_offered":{"ssl2":{"offered":false,"method":"probe"},"ssl3":{"offered":false,"method":"probe"},"tls1_0":{"offered":false,"method":"probe"},"tls1_1":{"offered":false,"method":"probe"},"tls1_2":{"offered":true,"method":"probe"},"tls1_3":{"offered":true,"method":"probe"}},"negotiated":{"version":"TLSv1.3","cipher_suite":"TLS13_AES_256_GCM_SHA384","group":"secp256r1","signature_scheme":"ECDSA_NISTP256_SHA256","alpn":"h2"},"cipher_suites":{"tls1_2":[{"name":"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384","iana_code":"0xC02C","supported":true,"method":"probe"},{"name":"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256","iana_code":"0xC02B","supported":true,"method":"probe"},{"name":"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256","iana_code":"0xCCA9","supported":false,"method":"probe"},{"name":"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384","iana_code":"0xC030","supported":true,"method":"probe"},{"name":"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256","iana_code":"0xC02F","supported":true,"method":"probe"},{"name":"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256","iana_code":"0xCCA8","supported":false,"method":"probe"}],"tls1_3":[{"name":"TLS13_AES_256_GCM_SHA384","iana_code":"0x1302","supported":true,"method":"probe"},{"name":"TLS13_AES_128_GCM_SHA256","iana_code":"0x1301","supported":true,"method":"probe"},{"name":"TLS13_CHACHA20_POLY1305_SHA256","iana_code":"0x1303","supported":false,"method":"probe"}],"server_enforces_order":{"value":false,"method":"probe"}},"groups":{"MLKEM1024":{"supported":null,"method":"not_probed","reason":"aws_lc_rs_no_mlkem1024_support"},"MLKEM512":{"supported":null,"method":"not_probed","reason":"aws_lc_rs_no_mlkem512_support"},"MLKEM768":{"supported":false,"method":"probe"},"X25519":{"supported":false,"method":"probe"},"X25519Kyber768Draft00":{"supported":null,"method":"not_probed","reason":"aws_lc_rs_no_x25519kyber768draft00_support"},"X25519MLKEM768":{"supported":false,"method":"probe"},"X448":{"supported":null,"method":"not_probed","reason":"aws_lc_rs_no_x448_support"},"secp256r1":{"supported":true,"method":"probe"},"secp256r1MLKEM768":{"supported":false,"method":"probe"},"secp384r1":{"supported":true,"method":"probe"},"secp384r1MLKEM1024":{"supported":null,"method":"not_probed","reason":"aws_lc_rs_no_secp384r1mlkem1024_support"},"secp521r1":{"supported":null,"method":"not_probed","reason":"aws_lc_rs_no_secp521r1_support"}},"extensions":{"ems":{"value":true,"method":"probe"},"secure_renegotiation":{"value":true,"method":"probe"},"ocsp_stapling":{"stapled":false,"method":"connection_state","response_length":0},"sct":{"delivery_paths":["x509_extension","tls_extension"],"count":2},"alpn_offered":["h2","http/1.1"],"encrypt_then_mac":{"value":false,"method":"probe"},"heartbeat_present":{"value":false,"method":"probe"},"heartbeat_echoes_oversized_payload":{"value":false,"method":"probe"},"compression_offered":["null"]},"downgrade_signaling":{"fallback_scsv_accepted":{"value":true,"method":"probe"}},"sni_behavior":{"omitted_probe":"rejected","method":"probe","reason":"tls_alert_unknown"}},"certificates":{"leaf":{"subject_cn":"nist.gov","subject_dn":"CN=nist.gov","san":["*.nist.gov","nist.gov"],"issuer_cn":"E8","issuer_dn":"C=US, O=Let's Encrypt, CN=E8","serial":"05:99:b9:f7:82:75:a2:7f:aa:74:45:7e:99:2c:64:00:b4:dc","not_before":"2026-03-06T11:14:12Z","not_after":"2026-06-04T11:14:11Z","validity_days":89,"signature_algorithm_oid":"1.2.840.10045.4.3.3","signature_algorithm_name":"ecdsa-with-SHA384","is_pqc_signature":false,"public_key":{"algorithm":"EC","size_bits":256,"curve":"secp256r1"},"embedded_scts":2,"fingerprint_sha256":"ca70ce24829a6bc6091ac99b6bc3efbb56cda7d9c7f030e7ddbed577d5ca5ea5","fingerprint_sha1":"25ef783993099d154246f6d2858ef22062f2318a"},"chain":[{"subject_cn":"nist.gov","subject_dn":"CN=nist.gov","san":["*.nist.gov","nist.gov"],"issuer_cn":"E8","issuer_dn":"C=US, O=Let's Encrypt, CN=E8","serial":"05:99:b9:f7:82:75:a2:7f:aa:74:45:7e:99:2c:64:00:b4:dc","not_before":"2026-03-06T11:14:12Z","not_after":"2026-06-04T11:14:11Z","validity_days":89,"signature_algorithm_oid":"1.2.840.10045.4.3.3","signature_algorithm_name":"ecdsa-with-SHA384","is_pqc_signature":false,"public_key":{"algorithm":"EC","size_bits":256,"curve":"secp256r1"},"embedded_scts":2,"fingerprint_sha256":"ca70ce24829a6bc6091ac99b6bc3efbb56cda7d9c7f030e7ddbed577d5ca5ea5","fingerprint_sha1":"25ef783993099d154246f6d2858ef22062f2318a"},{"subject_cn":"E8","subject_dn":"C=US, O=Let's Encrypt, CN=E8","san":[],"issuer_cn":"ISRG Root X1","issuer_dn":"C=US, O=Internet Security Research Group, CN=ISRG Root X1","serial":"63:95:93:63:c2:4e:70:82:71:59:18:bf:c3:d7:ed:56","not_before":"2024-03-13T00:00:00Z","not_after":"2027-03-12T23:59:59Z","validity_days":1094,"signature_algorithm_oid":"1.2.840.113549.1.1.11","signature_algorithm_name":"sha256WithRSAEncryption","is_pqc_signature":false,"public_key":{"algorithm":"EC","size_bits":384,"curve":"secp384r1"},"embedded_scts":0,"fingerprint_sha256":"83624fd338c8d9b023c18a67cb7a9c0519da43d11775b4c6cbdad45c3d997c52","fingerprint_sha1":"54317eb0765f0bc674855184eb8374b4199e4655"}],"chain_length":2},"validation":{"chain_valid_to_webpki_roots":{"value":true,"method":"probe"},"name_matches_sni":{"value":true,"method":"probe"}},"errors":[]}
+{
+  "schema_version": "1.0.0",
+  "scanner": {
+    "name": "kemist",
+    "version": "0.2.0"
+  },
+  "capabilities": {
+    "enabled_features": [],
+    "rustls_version": "0.23",
+    "aws_lc_rs_version": "bundled",
+    "native_tls_version": "unknown",
+    "provider_cipher_suites": [
+      "TLS13_AES_256_GCM_SHA384",
+      "TLS13_AES_128_GCM_SHA256",
+      "TLS13_CHACHA20_POLY1305_SHA256",
+      "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+      "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+      "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
+      "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+      "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+      "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256"
+    ],
+    "provider_kx_groups": [
+      "X25519MLKEM768",
+      "secp256r1MLKEM768",
+      "X25519",
+      "secp256r1",
+      "secp384r1",
+      "MLKEM768"
+    ],
+    "config_paths": [],
+    "probe_limitations": []
+  },
+  "scan": {
+    "target": "nist.gov:443",
+    "host": "nist.gov",
+    "port": 443,
+    "sni_sent": "nist.gov",
+    "resolved_ip": "172.65.90.27",
+    "started_at": "2026-04-19T23:43:04.409519Z",
+    "completed_at": "2026-04-19T23:43:10.810999Z",
+    "duration_ms": 6401
+  },
+  "tls": {
+    "versions_offered": {
+      "ssl2": {
+        "offered": false,
+        "method": "probe"
+      },
+      "ssl3": {
+        "offered": false,
+        "method": "probe"
+      },
+      "tls1_0": {
+        "offered": false,
+        "method": "probe"
+      },
+      "tls1_1": {
+        "offered": false,
+        "method": "probe"
+      },
+      "tls1_2": {
+        "offered": true,
+        "method": "probe"
+      },
+      "tls1_3": {
+        "offered": true,
+        "method": "probe"
+      }
+    },
+    "negotiated": {
+      "version": "TLSv1.3",
+      "cipher_suite": "TLS13_AES_256_GCM_SHA384",
+      "group": "secp256r1",
+      "signature_scheme": "ECDSA_NISTP256_SHA256",
+      "alpn": "h2"
+    },
+    "cipher_suites": {
+      "tls1_0": [
+        {
+          "name": "TLS_RSA_WITH_AES_128_CBC_SHA",
+          "iana_code": "0x002F",
+          "supported": false,
+          "method": "probe",
+          "openssl_name": "AES128-SHA",
+          "provider": "openssl"
+        },
+        {
+          "name": "TLS_RSA_WITH_3DES_EDE_CBC_SHA",
+          "iana_code": "0x000A",
+          "supported": false,
+          "method": "probe",
+          "openssl_name": "DES-CBC3-SHA",
+          "provider": "openssl"
+        },
+        {
+          "name": "TLS_RSA_WITH_RC4_128_SHA",
+          "iana_code": "0x0005",
+          "supported": false,
+          "method": "probe",
+          "openssl_name": "RC4-SHA",
+          "provider": "openssl"
+        }
+      ],
+      "tls1_1": [
+        {
+          "name": "TLS_RSA_WITH_AES_128_CBC_SHA",
+          "iana_code": "0x002F",
+          "supported": false,
+          "method": "probe",
+          "openssl_name": "AES128-SHA",
+          "provider": "openssl"
+        },
+        {
+          "name": "TLS_RSA_WITH_3DES_EDE_CBC_SHA",
+          "iana_code": "0x000A",
+          "supported": false,
+          "method": "probe",
+          "openssl_name": "DES-CBC3-SHA",
+          "provider": "openssl"
+        },
+        {
+          "name": "TLS_RSA_WITH_RC4_128_SHA",
+          "iana_code": "0x0005",
+          "supported": false,
+          "method": "probe",
+          "openssl_name": "RC4-SHA",
+          "provider": "openssl"
+        }
+      ],
+      "tls1_2": [
+        {
+          "name": "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+          "iana_code": "0xC02C",
+          "supported": true,
+          "method": "probe",
+          "provider": "aws_lc_rs"
+        },
+        {
+          "name": "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+          "iana_code": "0xC02B",
+          "supported": true,
+          "method": "probe",
+          "provider": "aws_lc_rs"
+        },
+        {
+          "name": "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
+          "iana_code": "0xCCA9",
+          "supported": false,
+          "method": "probe",
+          "provider": "aws_lc_rs"
+        },
+        {
+          "name": "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+          "iana_code": "0xC030",
+          "supported": true,
+          "method": "probe",
+          "provider": "aws_lc_rs"
+        },
+        {
+          "name": "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+          "iana_code": "0xC02F",
+          "supported": true,
+          "method": "probe",
+          "provider": "aws_lc_rs"
+        },
+        {
+          "name": "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
+          "iana_code": "0xCCA8",
+          "supported": false,
+          "method": "probe",
+          "provider": "aws_lc_rs"
+        },
+        {
+          "name": "TLS_RSA_WITH_AES_128_CBC_SHA",
+          "iana_code": "0x002F",
+          "supported": false,
+          "method": "probe",
+          "openssl_name": "AES128-SHA",
+          "provider": "openssl"
+        },
+        {
+          "name": "TLS_RSA_WITH_AES_256_CBC_SHA",
+          "iana_code": "0x0035",
+          "supported": false,
+          "method": "probe",
+          "openssl_name": "AES256-SHA",
+          "provider": "openssl"
+        },
+        {
+          "name": "TLS_RSA_WITH_AES_128_CBC_SHA256",
+          "iana_code": "0x003C",
+          "supported": false,
+          "method": "probe",
+          "openssl_name": "AES128-SHA256",
+          "provider": "openssl"
+        },
+        {
+          "name": "TLS_RSA_WITH_AES_256_CBC_SHA256",
+          "iana_code": "0x003D",
+          "supported": false,
+          "method": "probe",
+          "openssl_name": "AES256-SHA256",
+          "provider": "openssl"
+        },
+        {
+          "name": "TLS_RSA_WITH_3DES_EDE_CBC_SHA",
+          "iana_code": "0x000A",
+          "supported": false,
+          "method": "probe",
+          "openssl_name": "DES-CBC3-SHA",
+          "provider": "openssl"
+        },
+        {
+          "name": "TLS_RSA_WITH_RC4_128_SHA",
+          "iana_code": "0x0005",
+          "supported": false,
+          "method": "probe",
+          "openssl_name": "RC4-SHA",
+          "provider": "openssl"
+        },
+        {
+          "name": "TLS_RSA_WITH_RC4_128_MD5",
+          "iana_code": "0x0004",
+          "supported": false,
+          "method": "probe",
+          "openssl_name": "RC4-MD5",
+          "provider": "openssl"
+        },
+        {
+          "name": "TLS_RSA_WITH_NULL_SHA",
+          "iana_code": "0x0002",
+          "supported": false,
+          "method": "probe",
+          "openssl_name": "NULL-SHA",
+          "provider": "openssl"
+        },
+        {
+          "name": "TLS_RSA_WITH_NULL_MD5",
+          "iana_code": "0x0001",
+          "supported": false,
+          "method": "probe",
+          "openssl_name": "NULL-MD5",
+          "provider": "openssl"
+        },
+        {
+          "name": "TLS_DH_anon_WITH_AES_128_CBC_SHA",
+          "iana_code": "0x0034",
+          "supported": false,
+          "method": "probe",
+          "openssl_name": "ADH-AES128-SHA",
+          "provider": "openssl"
+        },
+        {
+          "name": "TLS_DHE_RSA_WITH_AES_128_CBC_SHA",
+          "iana_code": "0x0033",
+          "supported": false,
+          "method": "probe",
+          "openssl_name": "DHE-RSA-AES128-SHA",
+          "provider": "openssl"
+        },
+        {
+          "name": "TLS_DHE_RSA_WITH_AES_256_CBC_SHA",
+          "iana_code": "0x0039",
+          "supported": false,
+          "method": "probe",
+          "openssl_name": "DHE-RSA-AES256-SHA",
+          "provider": "openssl"
+        },
+        {
+          "name": "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256",
+          "iana_code": "0x0067",
+          "supported": false,
+          "method": "probe",
+          "openssl_name": "DHE-RSA-AES128-SHA256",
+          "provider": "openssl"
+        }
+      ],
+      "tls1_3": [
+        {
+          "name": "TLS13_AES_256_GCM_SHA384",
+          "iana_code": "0x1302",
+          "supported": true,
+          "method": "probe",
+          "provider": "aws_lc_rs"
+        },
+        {
+          "name": "TLS13_AES_128_GCM_SHA256",
+          "iana_code": "0x1301",
+          "supported": true,
+          "method": "probe",
+          "provider": "aws_lc_rs"
+        },
+        {
+          "name": "TLS13_CHACHA20_POLY1305_SHA256",
+          "iana_code": "0x1303",
+          "supported": false,
+          "method": "probe",
+          "provider": "aws_lc_rs"
+        }
+      ],
+      "server_enforces_order": {
+        "value": false,
+        "method": "probe"
+      }
+    },
+    "groups": {
+      "tls1_2": {
+        "ffdhe2048": {
+          "supported": false,
+          "method": "probe",
+          "iana_code": "0x0100",
+          "provider": "openssl"
+        },
+        "ffdhe3072": {
+          "supported": false,
+          "method": "probe",
+          "iana_code": "0x0101",
+          "provider": "openssl"
+        },
+        "ffdhe4096": {
+          "supported": false,
+          "method": "probe",
+          "iana_code": "0x0102",
+          "provider": "openssl"
+        },
+        "ffdhe6144": {
+          "supported": false,
+          "method": "probe",
+          "iana_code": "0x0103",
+          "provider": "openssl"
+        },
+        "ffdhe8192": {
+          "supported": false,
+          "method": "probe",
+          "iana_code": "0x0104",
+          "provider": "openssl"
+        }
+      },
+      "tls1_3": {
+        "MLKEM1024": {
+          "supported": null,
+          "method": "not_probed",
+          "reason": "aws_lc_rs_no_mlkem1024_support",
+          "provider": "aws_lc_rs"
+        },
+        "MLKEM512": {
+          "supported": null,
+          "method": "not_probed",
+          "reason": "aws_lc_rs_no_mlkem512_support",
+          "provider": "aws_lc_rs"
+        },
+        "MLKEM768": {
+          "supported": false,
+          "method": "probe",
+          "provider": "aws_lc_rs"
+        },
+        "X25519": {
+          "supported": false,
+          "method": "probe",
+          "provider": "aws_lc_rs"
+        },
+        "X25519Kyber768Draft00": {
+          "supported": null,
+          "method": "not_probed",
+          "reason": "aws_lc_rs_no_x25519kyber768draft00_support",
+          "provider": "aws_lc_rs"
+        },
+        "X25519MLKEM768": {
+          "supported": false,
+          "method": "probe",
+          "provider": "aws_lc_rs"
+        },
+        "X448": {
+          "supported": null,
+          "method": "not_probed",
+          "reason": "aws_lc_rs_no_x448_support",
+          "provider": "aws_lc_rs"
+        },
+        "ffdhe2048": {
+          "supported": false,
+          "method": "probe",
+          "iana_code": "0x0100",
+          "provider": "openssl"
+        },
+        "ffdhe3072": {
+          "supported": false,
+          "method": "probe",
+          "iana_code": "0x0101",
+          "provider": "openssl"
+        },
+        "ffdhe4096": {
+          "supported": false,
+          "method": "probe",
+          "iana_code": "0x0102",
+          "provider": "openssl"
+        },
+        "ffdhe6144": {
+          "supported": false,
+          "method": "probe",
+          "iana_code": "0x0103",
+          "provider": "openssl"
+        },
+        "ffdhe8192": {
+          "supported": false,
+          "method": "probe",
+          "iana_code": "0x0104",
+          "provider": "openssl"
+        },
+        "secp256r1": {
+          "supported": true,
+          "method": "probe",
+          "provider": "aws_lc_rs"
+        },
+        "secp256r1MLKEM768": {
+          "supported": false,
+          "method": "probe",
+          "provider": "aws_lc_rs"
+        },
+        "secp384r1": {
+          "supported": true,
+          "method": "probe",
+          "provider": "aws_lc_rs"
+        },
+        "secp384r1MLKEM1024": {
+          "supported": null,
+          "method": "not_probed",
+          "reason": "aws_lc_rs_no_secp384r1mlkem1024_support",
+          "provider": "aws_lc_rs"
+        },
+        "secp521r1": {
+          "supported": null,
+          "method": "not_probed",
+          "reason": "aws_lc_rs_no_secp521r1_support",
+          "provider": "aws_lc_rs"
+        }
+      }
+    },
+    "extensions": {
+      "ems": {
+        "value": true,
+        "method": "probe"
+      },
+      "secure_renegotiation": {
+        "value": true,
+        "method": "probe"
+      },
+      "ocsp_stapling": {
+        "stapled": false,
+        "method": "connection_state",
+        "response_length": 0
+      },
+      "sct": {
+        "delivery_paths": [
+          "x509_extension",
+          "tls_extension"
+        ],
+        "count": 2
+      },
+      "alpn_offered": [
+        "h2",
+        "http/1.1"
+      ],
+      "encrypt_then_mac": {
+        "value": false,
+        "method": "probe"
+      },
+      "heartbeat_present": {
+        "value": false,
+        "method": "probe"
+      },
+      "heartbeat_echoes_oversized_payload": {
+        "value": false,
+        "method": "probe"
+      },
+      "compression_offered": [
+        "null"
+      ]
+    },
+    "downgrade_signaling": {
+      "fallback_scsv_accepted": {
+        "value": null,
+        "method": "not_probed",
+        "reason": "superseded_by_fallback_scsv_enforced"
+      },
+      "fallback_scsv_enforced": {
+        "value": true,
+        "method": "probe",
+        "reason": "inappropriate_fallback_alert_at_tls1_2_with_server_max_tls1_3"
+      }
+    },
+    "sni_behavior": {
+      "omitted_probe": "rejected",
+      "method": "probe",
+      "reason": "tls_alert_unknown"
+    },
+    "dh_parameters": [],
+    "server_key_exchange_signatures": [],
+    "renegotiation_behavior": {
+      "client_initiated_verdict": "rejected",
+      "method": "probe",
+      "reason": "tls_alert_no_renegotiation: reneg handshake: error:0A00044C:SSL routines:ssl3_read_bytes:tlsv1 alert no renegotiation:ssl/record/rec_layer_s3.c:918:SSL alert number 100"
+    },
+    "client_auth_request": {
+      "requested": false,
+      "certificate_types": [],
+      "signature_algorithms": [],
+      "ca_distinguished_names": [],
+      "oid_filters": [],
+      "method": "probe"
+    }
+  },
+  "certificates": {
+    "leaf": {
+      "subject_cn": "nist.gov",
+      "subject_dn": "CN=nist.gov",
+      "san": [
+        "nist.gov"
+      ],
+      "issuer_cn": "E8",
+      "issuer_dn": "C=US, O=Let's Encrypt, CN=E8",
+      "serial": "06:20:93:da:20:aa:cd:43:58:0d:1e:ec:37:3c:b8:f1:97:26",
+      "not_before": "2026-04-19T20:49:03Z",
+      "not_after": "2026-07-18T20:49:02Z",
+      "validity_days": 89,
+      "signature_algorithm_oid": "1.2.840.10045.4.3.3",
+      "signature_algorithm_name": "ecdsa-with-SHA384",
+      "is_pqc_signature": false,
+      "public_key": {
+        "algorithm": "EC",
+        "size_bits": 256,
+        "curve": "secp256r1"
+      },
+      "embedded_scts": 2,
+      "fingerprint_sha256": "dc5a7ae5d04e6fb7832cad7764689c66005ca6107f9f7633b840585b86ee79c2",
+      "fingerprint_sha1": "cac8781f7ddc767cadf24f89f1730da9677642f0"
+    },
+    "chain": [
+      {
+        "subject_cn": "nist.gov",
+        "subject_dn": "CN=nist.gov",
+        "san": [
+          "nist.gov"
+        ],
+        "issuer_cn": "E8",
+        "issuer_dn": "C=US, O=Let's Encrypt, CN=E8",
+        "serial": "06:20:93:da:20:aa:cd:43:58:0d:1e:ec:37:3c:b8:f1:97:26",
+        "not_before": "2026-04-19T20:49:03Z",
+        "not_after": "2026-07-18T20:49:02Z",
+        "validity_days": 89,
+        "signature_algorithm_oid": "1.2.840.10045.4.3.3",
+        "signature_algorithm_name": "ecdsa-with-SHA384",
+        "is_pqc_signature": false,
+        "public_key": {
+          "algorithm": "EC",
+          "size_bits": 256,
+          "curve": "secp256r1"
+        },
+        "embedded_scts": 2,
+        "fingerprint_sha256": "dc5a7ae5d04e6fb7832cad7764689c66005ca6107f9f7633b840585b86ee79c2",
+        "fingerprint_sha1": "cac8781f7ddc767cadf24f89f1730da9677642f0"
+      },
+      {
+        "subject_cn": "E8",
+        "subject_dn": "C=US, O=Let's Encrypt, CN=E8",
+        "san": [],
+        "issuer_cn": "ISRG Root X1",
+        "issuer_dn": "C=US, O=Internet Security Research Group, CN=ISRG Root X1",
+        "serial": "63:95:93:63:c2:4e:70:82:71:59:18:bf:c3:d7:ed:56",
+        "not_before": "2024-03-13T00:00:00Z",
+        "not_after": "2027-03-12T23:59:59Z",
+        "validity_days": 1094,
+        "signature_algorithm_oid": "1.2.840.113549.1.1.11",
+        "signature_algorithm_name": "sha256WithRSAEncryption",
+        "is_pqc_signature": false,
+        "public_key": {
+          "algorithm": "EC",
+          "size_bits": 384,
+          "curve": "secp384r1"
+        },
+        "embedded_scts": 0,
+        "fingerprint_sha256": "83624fd338c8d9b023c18a67cb7a9c0519da43d11775b4c6cbdad45c3d997c52",
+        "fingerprint_sha1": "54317eb0765f0bc674855184eb8374b4199e4655"
+      }
+    ],
+    "chain_length": 2
+  },
+  "validation": {
+    "chain_valid_to_webpki_roots": {
+      "value": true,
+      "method": "probe"
+    },
+    "name_matches_sni": {
+      "value": true,
+      "method": "probe"
+    }
+  },
+  "errors": []
+}

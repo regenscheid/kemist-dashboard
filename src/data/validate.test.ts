@@ -143,7 +143,7 @@ describe("validateScan — SOFT WARN branches", () => {
       { batch_id: "batch-002", count: 1 },
     ]);
     const other = clone(nistRecord);
-    other.scanner = { ...other.scanner, version: "0.2.0" };
+    other.scanner = { ...other.scanner, version: "0.2.1" };
     other.scan = { ...other.scan, target: "other.gov:443", host: "other.gov" };
     const batches: ParsedBatch[] = [
       { batch_id: "batch-001", records: [clone(nistRecord)] },

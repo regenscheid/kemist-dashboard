@@ -78,12 +78,12 @@ export function classifyKxScheme(group: string | null): KxScheme | null {
  *      error > not_probed > not_applicable
  */
 export function aggregateHybridGroups(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  groups: Record<string, any>,
+  groups: KemistScanResultSchemaV1["tls"]["groups"]["tls1_3"],
 ): TriStateObservation {
-  const hybrids = PQC_HYBRID_GROUPS.map((name) => groups[name]).filter(
-    (g): g is TriStateInput => !!g,
-  );
+  const hybrids: TriStateInput[] = PQC_HYBRID_GROUPS.flatMap((name) => {
+    const observation = groups[name];
+    return observation ? [observation] : [];
+  });
 
   if (hybrids.some((g) => classify(g) === "affirmative")) {
     return { value: true, method: "probe" };
@@ -118,8 +118,9 @@ export function aggregateHybridGroups(
     }
   }
 
-  // No hybrids were even emitted (schema allows the `tls.groups`
-  // map to be sparse). Treat as not_probed with a clear reason.
+  // No hybrids were even emitted (schema allows the
+  // `tls.groups.tls1_3` map to be empty when aws-lc-rs ships zero
+  // hybrids). Treat as not_probed with a clear reason.
   return {
     value: null,
     method: "not_probed",
@@ -178,7 +179,7 @@ export function toDomainRow(
     kx_group: negotiated?.group ?? null,
     alpn: negotiated?.alpn ?? null,
 
-    pqc_hybrid: aggregateHybridGroups(tls.groups),
+    pqc_hybrid: aggregateHybridGroups(tls.groups.tls1_3),
     pqc_signature: leaf?.is_pqc_signature ?? false,
 
     cert_issuer_cn: leaf?.issuer_cn ?? null,

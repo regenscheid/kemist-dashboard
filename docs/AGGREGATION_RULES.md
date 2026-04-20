@@ -44,6 +44,21 @@ question-dependent and MUST be stated on the card:
 
 A card always states its denominator in the subtitle. Never infer.
 
+## Canonical field paths after schema unification
+
+The scanner now publishes one canonical answer for cipher-suite and
+KX-group support:
+
+- cipher suites live under tls.cipher_suites.tls1_0 / tls1_1 /
+  tls1_2 / tls1_3
+- group support lives under tls.groups.tls1_2 and tls.groups.tls1_3
+- each entry may carry a provider tag of aws_lc_rs or openssl for
+  attribution
+
+The dashboard currently uses those merged paths directly and keeps
+summary counts provider-agnostic unless a future product requirement
+calls for a provider split.
+
 ## Build-time consistency checks (hard fail / soft warn)
 
 `scripts/fetch-scan.ts` (lands in PR 3) enforces these rules against
