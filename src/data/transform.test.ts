@@ -84,7 +84,7 @@ describe("aggregateHybridGroups", () => {
 
   const baseNotProbed = {
     method: "not_probed" as const,
-    reason: "aws_lc_rs_no_hybrid_support",
+    reason: "probe_skipped_for_this_scan",
   };
 
   it("returns affirmative if any known hybrid is probe+true", () => {
@@ -109,6 +109,21 @@ describe("aggregateHybridGroups", () => {
     expect(result.method).toBe("probe");
   });
 
+  it("treats provider no-support not_probed hybrids as explicit negatives", () => {
+    const groups: GroupsByName = {
+      X25519MLKEM768: { supported: false, method: "probe" },
+      secp256r1MLKEM768: { supported: false, method: "probe" },
+      secp384r1MLKEM1024: {
+        supported: null,
+        method: "not_probed",
+        reason: "aws_lc_rs_no_secp384r1mlkem1024_support",
+      },
+    };
+    const result = aggregateHybridGroups(groups);
+    expect(result.value).toBe(false);
+    expect(result.method).toBe("probe");
+  });
+
   it("returns unknown when at least one hybrid is unknown (no collapsing into rejected)", () => {
     const groups: GroupsByName = {
       X25519MLKEM768: { supported: false, method: "probe" },
@@ -118,7 +133,7 @@ describe("aggregateHybridGroups", () => {
     const result = aggregateHybridGroups(groups);
     expect(result.value).toBeNull();
     expect(result.method).toBe("not_probed");
-    expect(result.reason).toBe("aws_lc_rs_no_hybrid_support");
+    expect(result.reason).toBe("probe_skipped_for_this_scan");
   });
 
   it("prefers error > not_probed > not_applicable when mixed unknowns", () => {

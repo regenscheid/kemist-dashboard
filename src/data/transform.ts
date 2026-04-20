@@ -90,15 +90,19 @@ export function aggregateHybridGroups(
   }
 
   // All observed + all explicit_negative → return an explicit
-  // negative with method=probe. If any observed hybrid is unknown,
-  // return unknown with the worst method.
+  // negative with method=probe. We also treat backend-declared
+  // “not probed because this provider has no support for the group”
+  // as an effective negative for the dashboard rollup.
   const nonAffirmative = hybrids.filter(
     (g) => classify(g) !== "affirmative",
   );
-  const allExplicitNegative =
+  const allEffectivelyNegative =
     nonAffirmative.length > 0 &&
-    nonAffirmative.every((g) => classify(g) === "explicit_negative");
-  if (allExplicitNegative) {
+    nonAffirmative.every(
+      (g) =>
+        classify(g) === "explicit_negative" || isProviderNoSupport(g),
+    );
+  if (allEffectivelyNegative) {
     return { value: false, method: "probe" };
   }
 
@@ -202,6 +206,14 @@ export function toDomainRow(
  * preserved verbatim and the `{[k: string]: unknown}` intersection
  * from json-schema-to-typescript is shed.
  */
+function isProviderNoSupport(obs: TriStateInput): boolean {
+  return (
+    obs.method === "not_probed" &&
+    typeof obs.reason === "string" &&
+    /^(aws_lc_rs|openssl)_no_.*_support$/.test(obs.reason)
+  );
+}
+
 function normalizeObservation(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   obs: any,
