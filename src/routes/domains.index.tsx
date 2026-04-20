@@ -21,7 +21,6 @@ import {
   type Filters,
   type PqcHybridFilter,
 } from "../components/domains/filters";
-import type { Scope } from "../data/scope";
 import { useDomains, useLatestScanDate } from "../db/useDomains";
 
 // ── URL search schema ────────────────────────────────────────────
@@ -32,7 +31,6 @@ type DomainsSearch = {
   show_unreachable?: boolean;
   tls?: string[];
   max_tls?: string;
-  scope?: Scope[];
   pqc?: PqcHybridFilter[];
   err?: string[];
   exp?: CertExpiryWindow;
@@ -55,10 +53,6 @@ export const Route = createFileRoute("/domains/")({
     // without having to know the internal param name.
     const errValues =
       s.error_category !== undefined ? s.error_category : s.err;
-    const asScopes = (x: unknown): Scope[] =>
-      arr(x).filter((v): v is Scope =>
-        ["federal-gov", "mil", "edu", "commercial", "unknown-tld"].includes(v),
-      );
     const asPqc = (x: unknown): PqcHybridFilter[] =>
       arr(x).filter((v): v is PqcHybridFilter =>
         ["affirmative", "explicit_negative", "unknown"].includes(v),
@@ -77,7 +71,6 @@ export const Route = createFileRoute("/domains/")({
       ...(typeof s.max_tls === "string" && s.max_tls.length > 0
         ? { max_tls: s.max_tls }
         : {}),
-      scope: asScopes(s.scope),
       pqc: asPqc(s.pqc),
       err: arr(errValues),
       exp: asExpiry(s.exp),
@@ -96,7 +89,6 @@ function searchToFilters(s: DomainsSearch): Filters {
     show_unreachable: s.show_unreachable ?? false,
     tls_versions: s.tls ?? [],
     max_supported_tls_version: s.max_tls ?? "",
-    scopes: s.scope ?? [],
     pqc_hybrid: s.pqc ?? [],
     error_categories: s.err ?? [],
     cert_expiry: s.exp ?? "any",
@@ -115,7 +107,6 @@ function filtersToSearch(f: Filters): Partial<DomainsSearch> {
   if (f.show_unreachable) out.show_unreachable = true;
   if (f.tls_versions.length) out.tls = f.tls_versions;
   if (f.max_supported_tls_version) out.max_tls = f.max_supported_tls_version;
-  if (f.scopes.length) out.scope = f.scopes;
   if (f.pqc_hybrid.length) out.pqc = f.pqc_hybrid;
   if (f.error_categories.length) out.err = f.error_categories;
   if (f.cert_expiry !== "any") out.exp = f.cert_expiry;
@@ -171,7 +162,6 @@ function DomainsRoute() {
         delete cleared.show_unreachable;
         delete cleared.tls;
         delete cleared.max_tls;
-        delete cleared.scope;
         delete cleared.pqc;
         delete cleared.err;
         delete cleared.exp;

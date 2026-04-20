@@ -8,7 +8,6 @@
  * can persist to the URL.
  */
 
-import type { Scope } from "../../data/scope";
 import type {
   CertExpiryWindow,
   FacetOption,
@@ -23,7 +22,6 @@ type Props = {
   options: {
     tls_versions: FacetOption<string>[];
     max_supported_tls_versions: FacetOption<string>[];
-    scopes: FacetOption<Scope>[];
     error_categories: FacetOption<string>[];
   };
   totalResponding: number;
@@ -147,13 +145,6 @@ export function FiltersPanel({
           ))}
         </select>
       </label>
-
-      <FacetBlock
-        title="Scope"
-        options={options.scopes}
-        selected={filters.scopes}
-        onToggle={(v) => toggle("scopes", v)}
-      />
 
       <FacetBlock
         title="PQC hybrid"

@@ -60,10 +60,10 @@ describe("matchesFilters", () => {
     expect(matchesFilters(r, { ...EMPTY_FILTERS, q: "nope" })).toBe(false);
   });
 
-  it("respects ANY-of semantics within a facet", () => {
-    const a = row({ scope: "federal-gov" });
-    const b = row({ scope: "commercial" });
-    const filters = { ...EMPTY_FILTERS, scopes: ["federal-gov" as const] };
+  it("respects ANY-of semantics within the supported-version facet", () => {
+    const a = row({ supported_tls_versions: ["TLS 1.2", "TLS 1.3"] });
+    const b = row({ supported_tls_versions: ["TLS 1.0"] });
+    const filters = { ...EMPTY_FILTERS, tls_versions: ["TLS 1.2"] };
     expect(matchesFilters(a, filters)).toBe(true);
     expect(matchesFilters(b, filters)).toBe(false);
   });
@@ -177,13 +177,11 @@ describe("buildFacetOptions", () => {
       row({ scope: "commercial", tls_version: "TLSv1.3", host: "a.com", target: "a.com:443" }),
     ];
     const options = buildFacetOptions(rows);
-    const scopeCounts = Object.fromEntries(
-      options.scopes.map((s) => [s.option, s.count]),
+    const tlsCounts = Object.fromEntries(
+      options.tls_versions.map((s) => [s.option, s.count]),
     );
-    expect(scopeCounts["federal-gov"]).toBe(2);
-    expect(scopeCounts["commercial"]).toBe(1);
-    // Sort order: federal-gov first (count 2).
-    expect(options.scopes[0]?.option).toBe("federal-gov");
+    expect(tlsCounts["TLS 1.3"]).toBe(3);
+    expect(tlsCounts["TLS 1.2"]).toBe(3);
   });
 
   it("treats absent fields as explicit buckets", () => {
