@@ -29,6 +29,7 @@ function row(overrides: Partial<DomainRow> = {}): DomainRow {
     name_matches_sni: { value: true, method: "probe" },
     error_count: 0,
     top_error_category: null,
+    unreachable_summary: null,
     scanner_version: "0.1.0",
     ...overrides,
   };
@@ -118,6 +119,26 @@ describe("buildAggregates — tri-state invariants", () => {
     const warnings = ["mixed scanner versions: 0.1.0, 0.2.0"];
     const agg = buildAggregates([row()], "2026-04-19", warnings);
     expect(agg.warnings).toEqual(warnings);
+  });
+
+  it("uses offered-version support rather than the negotiated version for TLS 1.3 adoption", () => {
+    const rows = [
+      row({
+        tls_version: "TLSv1.2",
+        supported_tls_versions: ["TLS 1.2", "TLS 1.3"],
+        max_supported_tls_version: "TLS 1.3",
+      }),
+      row({
+        tls_version: "TLSv1.2",
+        supported_tls_versions: ["TLS 1.2"],
+        max_supported_tls_version: "TLS 1.2",
+      }),
+    ];
+    const agg = buildAggregates(rows, "2026-04-19", []);
+    const all = agg.by_scope.__all;
+    expect(all?.tls_1_3_of_all.affirmative).toBe(1);
+    expect(all?.tls_1_3_of_all.explicit_negative).toBe(1);
+    expect(all?.tls_1_3_of_all.unknown).toBe(0);
   });
 
   it("renders unknown/absent fields in distributions rather than dropping rows", () => {

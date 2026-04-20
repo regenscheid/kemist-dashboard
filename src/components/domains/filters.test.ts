@@ -32,6 +32,7 @@ function row(overrides: Partial<DomainRow> = {}): DomainRow {
     name_matches_sni: { value: true, method: "probe" },
     error_count: 0,
     top_error_category: null,
+    unreachable_summary: null,
     scanner_version: "0.1.0",
     ...overrides,
   };

@@ -129,6 +129,13 @@ export function topErrorCategory(
   return errors[0]?.category ?? null;
 }
 
+export function summarizeErrorCategories(
+  errors: { category: string; context: string; timestamp: string }[],
+): string | null {
+  const unique = [...new Set(errors.map((error) => error.category))];
+  return unique.length > 0 ? unique.join(", ") : null;
+}
+
 export type TransformContext = {
   scan_date: string;
   batch_id: string;
@@ -182,6 +189,7 @@ export function toDomainRow(
 
     error_count: errors.length,
     top_error_category: topErrorCategory(errors),
+    unreachable_summary: summarizeErrorCategories(errors),
 
     scanner_version: scanner.version,
   };

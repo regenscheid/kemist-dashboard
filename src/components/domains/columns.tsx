@@ -82,6 +82,10 @@ export const domainColumns = [
     header: "TLS",
     size: 96,
     cell: (c) => {
+      const row = c.row.original;
+      if (!isRespondingHost(row)) {
+        return <span className="text-slate-500">—</span>;
+      }
       const v = c.getValue();
       return v ? (
         <Truncate className="font-mono text-xs" title={v}>
@@ -96,6 +100,10 @@ export const domainColumns = [
     header: "Key exchange",
     size: 200,
     cell: (c) => {
+      const row = c.row.original;
+      if (!isRespondingHost(row)) {
+        return <span className="text-slate-500">—</span>;
+      }
       const v = c.getValue();
       return v ? (
         <Truncate className="font-mono text-xs" title={v}>
@@ -109,7 +117,13 @@ export const domainColumns = [
   col.accessor("pqc_hybrid", {
     header: "PQC hybrid",
     size: 152,
-    cell: (c) => <TriState observation={c.getValue()} />,
+    cell: (c) => {
+      const row = c.row.original;
+      if (!isRespondingHost(row)) {
+        return <span className="text-slate-500">—</span>;
+      }
+      return <TriState observation={c.getValue()} />;
+    },
     sortingFn: (a, b) => {
       const order = { affirmative: 0, explicit_negative: 1, unknown: 2 };
       const rank = (row: typeof a) => {
@@ -197,7 +211,7 @@ export const domainColumns = [
     size: 220,
     cell: (c) => {
       const row = c.row.original;
-      const v = c.getValue();
+      const v = row.unreachable_summary ?? c.getValue();
       if (isRespondingHost(row)) {
         return <span className="text-xs text-slate-500">—</span>;
       }

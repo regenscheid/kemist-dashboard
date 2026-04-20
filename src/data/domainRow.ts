@@ -75,6 +75,8 @@ export type DomainRow = {
 
   error_count: number;
   top_error_category: string | null;
+  /** Unique joined error categories for the unreachable-row summary column. */
+  unreachable_summary: string | null;
 
   scanner_version: string;
 };

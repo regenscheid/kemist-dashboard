@@ -135,12 +135,14 @@ function buildScopeAggregate(rows: DomainRow[]): ScopeAggregates {
   }
 
   for (const row of respondingRows) {
-    // TLS 1.3 adoption among hosts that actually responded to the
-    // TLS probes. Unreachable hosts are excluded from this posture
-    // denominator so the percentages stay meaningful.
-    if (row.tls_version === "TLSv1.3" || row.tls_version === "TLSv1_3") {
+    // TLS 1.3 support among hosts that actually responded to the
+    // TLS probes. This uses the schema-authoritative
+    // `versions_offered.*.offered` signal, flattened into
+    // `supported_tls_versions`, rather than the single negotiated
+    // version.
+    if (row.supported_tls_versions.includes("TLS 1.3")) {
       tls13Affirm += 1;
-    } else if (row.tls_version) {
+    } else if (row.supported_tls_versions.length > 0) {
       tls13Explicit += 1;
     } else {
       tls13Unk += 1;

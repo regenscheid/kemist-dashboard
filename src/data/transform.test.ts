@@ -81,6 +81,33 @@ describe("toDomainRow", () => {
     expect(row.cert_validity_days).toBeGreaterThan(0);
     expect(row.pqc_signature).toBe(false);
   });
+
+  it("marks non-responders from versions_offered and joins distinct error categories", () => {
+    const nonResponder = structuredClone(nistRecord);
+    nonResponder.tls.versions_offered = {
+      ssl2: { offered: false, method: "probe" },
+      ssl3: { offered: false, method: "probe" },
+      tls1_0: { offered: false, method: "probe" },
+      tls1_1: { offered: false, method: "probe" },
+      tls1_2: { offered: false, method: "probe" },
+      tls1_3: { offered: false, method: "probe" },
+    };
+    delete nonResponder.tls.negotiated;
+    nonResponder.errors = [
+      { category: "connection_refused", context: "…", timestamp: "…" },
+      { category: "dns_resolution_failed", context: "…", timestamp: "…" },
+      { category: "connection_refused", context: "…", timestamp: "…" },
+    ];
+
+    const row = toDomainRow(nonResponder, {
+      scan_date: "2026-04-19",
+      batch_id: "batch-003",
+    });
+
+    expect(row.handshake_succeeded).toBe(false);
+    expect(row.supported_tls_versions).toEqual([]);
+    expect(row.unreachable_summary).toBe("connection_refused, dns_resolution_failed");
+  });
 });
 
 describe("aggregateHybridGroups", () => {

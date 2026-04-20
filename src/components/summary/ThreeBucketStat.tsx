@@ -108,15 +108,23 @@ export function ScalarStat({
   caption?: string;
 }) {
   const total = yes + no;
+  const pctYes = total > 0 ? (yes / total) * 100 : null;
   return (
     <div
       className="rounded border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/30"
       role="group"
       aria-label={title}
     >
-      <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">
-        {title}
-      </h3>
+      <div className="flex items-baseline justify-between gap-2">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">
+          {title}
+        </h3>
+        {pctYes !== null && (
+          <span className="text-xs text-slate-500">
+            {pctYes.toFixed(1)}%
+          </span>
+        )}
+      </div>
       <div className="mt-2 text-2xl font-semibold">
         {yes.toLocaleString()}
         <span className="text-sm font-normal text-slate-500">
