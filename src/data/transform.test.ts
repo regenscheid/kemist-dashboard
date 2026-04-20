@@ -52,6 +52,9 @@ describe("toDomainRow", () => {
     expect(row.scan_date).toBe("2026-04-19");
     expect(row.handshake_succeeded).toBe(true);
     expect(row.tls_version).toBe("TLSv1.3");
+    expect(row.supported_tls_versions).toContain("TLS 1.2");
+    expect(row.supported_tls_versions).toContain("TLS 1.3");
+    expect(row.max_supported_tls_version).toBe("TLS 1.3");
     expect(row.error_count).toBe(0);
     expect(row.top_error_category).toBeNull();
   });

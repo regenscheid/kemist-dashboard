@@ -17,6 +17,8 @@ function row(overrides: Partial<DomainRow> = {}): DomainRow {
     batch_id: "batch-001",
     handshake_succeeded: true,
     tls_version: "TLSv1.3",
+    supported_tls_versions: ["TLS 1.2", "TLS 1.3"],
+    max_supported_tls_version: "TLS 1.3",
     cipher: "TLS13_AES_256_GCM_SHA384",
     kx_group: "X25519",
     alpn: "h2",
@@ -85,11 +87,49 @@ describe("matchesFilters", () => {
     expect(matchesFilters(unknown, filters)).toBe(true);
   });
 
-  it("treats absent tls_version as the (unknown) bucket", () => {
-    const r = row({ tls_version: null });
+  it("matches supported-version filters even when the negotiated version is newer", () => {
+    const r = row({
+      tls_version: "TLSv1.3",
+      supported_tls_versions: ["TLS 1.1", "TLS 1.2", "TLS 1.3"],
+      max_supported_tls_version: "TLS 1.3",
+    });
+    expect(
+      matchesFilters(r, { ...EMPTY_FILTERS, tls_versions: ["TLS 1.2"] }),
+    ).toBe(true);
+    expect(
+      matchesFilters(r, { ...EMPTY_FILTERS, tls_versions: ["SSL 3.0"] }),
+    ).toBe(false);
+  });
+
+  it("matches hosts by highest supported TLS version", () => {
+    const r = row({
+      supported_tls_versions: ["TLS 1.0", "TLS 1.1"],
+      max_supported_tls_version: "TLS 1.1",
+      tls_version: "TLSv1.1",
+    });
+    expect(
+      matchesFilters(r, {
+        ...EMPTY_FILTERS,
+        max_supported_tls_version: "TLS 1.1",
+      }),
+    ).toBe(true);
+    expect(
+      matchesFilters(r, {
+        ...EMPTY_FILTERS,
+        max_supported_tls_version: "TLS 1.2",
+      }),
+    ).toBe(false);
+  });
+
+  it("treats absent support data as the (unknown) bucket", () => {
+    const r = row({
+      tls_version: null,
+      supported_tls_versions: [],
+      max_supported_tls_version: null,
+    });
     const filters = {
       ...EMPTY_FILTERS,
-      tls_versions: ["(unknown)"],
+      max_supported_tls_version: "(unknown)",
     };
     expect(matchesFilters(r, filters)).toBe(true);
   });
@@ -147,7 +187,14 @@ describe("buildFacetOptions", () => {
   });
 
   it("treats absent fields as explicit buckets", () => {
-    const rows = [row({ tls_version: null, top_error_category: null })];
+    const rows = [
+      row({
+        tls_version: null,
+        supported_tls_versions: [],
+        max_supported_tls_version: null,
+        top_error_category: null,
+      }),
+    ];
     const options = buildFacetOptions(rows);
     expect(options.tls_versions.some((o) => o.option === "(unknown)")).toBe(true);
     expect(

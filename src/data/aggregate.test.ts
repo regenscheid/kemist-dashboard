@@ -14,6 +14,8 @@ function row(overrides: Partial<DomainRow> = {}): DomainRow {
     batch_id: "batch-001",
     handshake_succeeded: true,
     tls_version: "TLSv1.3",
+    supported_tls_versions: ["TLS 1.2", "TLS 1.3"],
+    max_supported_tls_version: "TLS 1.3",
     cipher: "TLS13_AES_256_GCM_SHA384",
     kx_group: "X25519",
     alpn: "h2",

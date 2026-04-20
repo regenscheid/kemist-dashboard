@@ -43,6 +43,10 @@ export type DomainRow = {
   handshake_succeeded: boolean | null;
   /** Post-handshake negotiated version, e.g. "TLSv1_3". */
   tls_version: string | null;
+  /** All protocol versions the target explicitly supported in probes. */
+  supported_tls_versions: string[];
+  /** Highest protocol version explicitly supported in probes. */
+  max_supported_tls_version: string | null;
   cipher: string | null;
   kx_group: string | null;
   alpn: string | null;

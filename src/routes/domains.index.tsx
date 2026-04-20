@@ -31,6 +31,7 @@ type DomainsSearch = {
   q?: string;
   show_unreachable?: boolean;
   tls?: string[];
+  max_tls?: string;
   scope?: Scope[];
   pqc?: PqcHybridFilter[];
   err?: string[];
@@ -73,6 +74,9 @@ export const Route = createFileRoute("/domains/")({
       ...(typeof s.q === "string" && s.q.length > 0 ? { q: s.q } : {}),
       ...(asBool(s.show_unreachable) ? { show_unreachable: true } : {}),
       tls: arr(s.tls),
+      ...(typeof s.max_tls === "string" && s.max_tls.length > 0
+        ? { max_tls: s.max_tls }
+        : {}),
       scope: asScopes(s.scope),
       pqc: asPqc(s.pqc),
       err: arr(errValues),
@@ -91,6 +95,7 @@ function searchToFilters(s: DomainsSearch): Filters {
     q: s.q ?? "",
     show_unreachable: s.show_unreachable ?? false,
     tls_versions: s.tls ?? [],
+    max_supported_tls_version: s.max_tls ?? "",
     scopes: s.scope ?? [],
     pqc_hybrid: s.pqc ?? [],
     error_categories: s.err ?? [],
@@ -109,6 +114,7 @@ function filtersToSearch(f: Filters): Partial<DomainsSearch> {
   if (f.q) out.q = f.q;
   if (f.show_unreachable) out.show_unreachable = true;
   if (f.tls_versions.length) out.tls = f.tls_versions;
+  if (f.max_supported_tls_version) out.max_tls = f.max_supported_tls_version;
   if (f.scopes.length) out.scope = f.scopes;
   if (f.pqc_hybrid.length) out.pqc = f.pqc_hybrid;
   if (f.error_categories.length) out.err = f.error_categories;
@@ -164,6 +170,7 @@ function DomainsRoute() {
         delete cleared.q;
         delete cleared.show_unreachable;
         delete cleared.tls;
+        delete cleared.max_tls;
         delete cleared.scope;
         delete cleared.pqc;
         delete cleared.err;

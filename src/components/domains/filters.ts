@@ -14,6 +14,10 @@
 import { classify, type TriStateClass } from "../../lib/triState";
 import type { DomainRow } from "../../data/domainRow";
 import type { Scope } from "../../data/scope";
+import {
+  compareTlsVersionLabels,
+  normalizeTlsVersionLabel,
+} from "../../data/tlsVersions";
 
 export type CertExpiryWindow =
   | "expired"
@@ -33,6 +37,8 @@ export type Filters = {
   show_unreachable: boolean;
   /** ANY-of semantics within a facet. Empty = no filter on that facet. */
   tls_versions: string[];
+  /** Single-select highest-supported-version facet. Empty = no filter. */
+  max_supported_tls_version: string;
   scopes: Scope[];
   pqc_hybrid: PqcHybridFilter[];
   error_categories: string[];
@@ -43,6 +49,7 @@ export const EMPTY_FILTERS: Filters = {
   q: "",
   show_unreachable: false,
   tls_versions: [],
+  max_supported_tls_version: "",
   scopes: [],
   pqc_hybrid: [],
   error_categories: [],
@@ -54,6 +61,7 @@ export function isFilterActive(f: Filters): boolean {
     f.q.length > 0 ||
     f.show_unreachable ||
     f.tls_versions.length > 0 ||
+    f.max_supported_tls_version.length > 0 ||
     f.scopes.length > 0 ||
     f.pqc_hybrid.length > 0 ||
     f.error_categories.length > 0 ||
@@ -76,9 +84,16 @@ export function matchesFilters(row: DomainRow, f: Filters): boolean {
     return false;
   }
   if (f.tls_versions.length > 0) {
-    // An absent tls_version matches "(unknown)" as an explicit bucket.
-    const v = row.tls_version ?? "(unknown)";
-    if (!f.tls_versions.includes(v)) return false;
+    const supported = getSupportedTlsVersions(row);
+    if (supported.length === 0) {
+      if (!f.tls_versions.includes("(unknown)")) return false;
+    } else if (!f.tls_versions.some((v) => supported.includes(v))) {
+      return false;
+    }
+  }
+  if (f.max_supported_tls_version.length > 0) {
+    const maxSupported = getMaxSupportedTlsVersion(row) ?? "(unknown)";
+    if (f.max_supported_tls_version !== maxSupported) return false;
   }
   if (f.scopes.length > 0 && !f.scopes.includes(row.scope)) {
     return false;
@@ -143,20 +158,31 @@ export type FacetOption<T> = { option: T; count: number };
  */
 export function buildFacetOptions(rows: DomainRow[]): {
   tls_versions: FacetOption<string>[];
+  max_supported_tls_versions: FacetOption<string>[];
   scopes: FacetOption<Scope>[];
   error_categories: FacetOption<string>[];
 } {
   const tls = new Map<string, number>();
+  const maxTls = new Map<string, number>();
   const scopes = new Map<Scope, number>();
   const errs = new Map<string, number>();
   for (const row of rows) {
-    incr(tls, row.tls_version ?? "(unknown)");
+    const supported = getSupportedTlsVersions(row);
+    if (supported.length === 0) {
+      incr(tls, "(unknown)");
+    } else {
+      for (const version of supported) incr(tls, version);
+    }
+    incr(maxTls, getMaxSupportedTlsVersion(row) ?? "(unknown)");
     incr(scopes, row.scope);
     incr(errs, row.top_error_category ?? "(none)");
   }
   return {
     tls_versions: [...tls.entries()]
-      .sort((a, b) => b[1] - a[1])
+      .sort((a, b) => compareTlsVersionLabels(a[0], b[0]))
+      .map(([option, count]) => ({ option, count })),
+    max_supported_tls_versions: [...maxTls.entries()]
+      .sort((a, b) => compareTlsVersionLabels(a[0], b[0]))
       .map(([option, count]) => ({ option, count })),
     scopes: [...scopes.entries()]
       .sort((a, b) => b[1] - a[1])
@@ -165,6 +191,22 @@ export function buildFacetOptions(rows: DomainRow[]): {
       .sort((a, b) => b[1] - a[1])
       .map(([option, count]) => ({ option, count })),
   };
+}
+
+function getSupportedTlsVersions(row: DomainRow): string[] {
+  if (Array.isArray(row.supported_tls_versions) && row.supported_tls_versions.length > 0) {
+    return [...row.supported_tls_versions].sort(compareTlsVersionLabels);
+  }
+  const negotiated = normalizeTlsVersionLabel(row.tls_version);
+  return negotiated ? [negotiated] : [];
+}
+
+function getMaxSupportedTlsVersion(row: DomainRow): string | null {
+  if (typeof row.max_supported_tls_version === "string" && row.max_supported_tls_version.length > 0) {
+    return row.max_supported_tls_version;
+  }
+  const supported = getSupportedTlsVersions(row);
+  return supported.at(-1) ?? null;
 }
 
 function incr<K>(map: Map<K, number>, key: K): void {

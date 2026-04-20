@@ -163,6 +163,8 @@ function makeRow(): DomainRow {
     batch_id: "batch-001",
     handshake_succeeded: true,
     tls_version: "TLSv1.3",
+    supported_tls_versions: ["TLS 1.2", "TLS 1.3"],
+    max_supported_tls_version: "TLS 1.3",
     cipher: "TLS_AES_128_GCM_SHA256",
     kx_group: "X25519",
     alpn: "h2",

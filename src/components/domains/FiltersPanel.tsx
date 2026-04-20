@@ -22,6 +22,7 @@ type Props = {
   onChange: (next: Filters) => void;
   options: {
     tls_versions: FacetOption<string>[];
+    max_supported_tls_versions: FacetOption<string>[];
     scopes: FacetOption<Scope>[];
     error_categories: FacetOption<string>[];
   };
@@ -117,11 +118,35 @@ export function FiltersPanel({
       </label>
 
       <FacetBlock
-        title="TLS version"
+        title="Supports version"
         options={options.tls_versions}
         selected={filters.tls_versions}
         onToggle={(v) => toggle("tls_versions", v)}
       />
+
+      <label className="block">
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Highest supported version
+        </span>
+        <select
+          value={filters.max_supported_tls_version}
+          onChange={(e) =>
+            onChange({
+              ...filters,
+              max_supported_tls_version: e.currentTarget.value,
+            })
+          }
+          className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-900"
+        >
+          <option value="">Any</option>
+          {options.max_supported_tls_versions.map((opt) => (
+            <option key={opt.option} value={opt.option}>
+              {opt.option}
+              {opt.count > 0 ? ` (${opt.count})` : ""}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <FacetBlock
         title="Scope"

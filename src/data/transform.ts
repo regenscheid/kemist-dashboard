@@ -11,6 +11,10 @@ import type { KemistScanResultSchemaV1 } from "./schema";
 import type { DomainRow, TriStateObservation } from "./domainRow";
 import { inferScope } from "./scope";
 import {
+  deriveMaxSupportedTlsVersion,
+  deriveSupportedTlsVersions,
+} from "./tlsVersions";
+import {
   classify,
   extractValue,
   type TriStateInput,
@@ -168,9 +172,8 @@ export function toDomainRow(
 
   const leaf = certificates.leaf;
   const negotiated = tls.negotiated;
-  const didRespond = Object.values(tls.versions_offered).some(
-    (obs) => extractValue(obs) === true,
-  );
+  const supportedTlsVersions = deriveSupportedTlsVersions(tls.versions_offered);
+  const didRespond = supportedTlsVersions.length > 0;
 
   return {
     target: scan.target,
@@ -182,6 +185,8 @@ export function toDomainRow(
 
     handshake_succeeded: didRespond,
     tls_version: negotiated?.version ?? null,
+    supported_tls_versions: supportedTlsVersions,
+    max_supported_tls_version: deriveMaxSupportedTlsVersion(tls.versions_offered),
     cipher: negotiated?.cipher_suite ?? null,
     kx_group: negotiated?.group ?? null,
     alpn: negotiated?.alpn ?? null,
