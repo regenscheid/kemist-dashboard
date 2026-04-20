@@ -10,7 +10,7 @@ function RootLayout() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <header className="border-b border-slate-200 dark:border-slate-800">
-        <nav className="mx-auto flex max-w-6xl items-center gap-6 px-6 py-3 text-sm">
+        <nav className="mx-auto flex w-full max-w-screen-2xl items-center gap-6 px-4 py-3 text-sm sm:px-6">
           <Link to="/" className="font-semibold">
             kemist-dashboard
           </Link>
@@ -44,7 +44,7 @@ function RootLayout() {
           )}
         </nav>
       </header>
-      <main className="mx-auto max-w-6xl px-6 py-6">
+      <main className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6">
         <Outlet />
       </main>
     </div>

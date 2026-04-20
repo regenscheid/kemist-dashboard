@@ -119,12 +119,14 @@ export function FiltersPanel({
         </span>
         <select
           value={filters.max_supported_tls_version}
-          onChange={(e) =>
+          onChange={(e) => {
+            const selected =
+              e.currentTarget.selectedOptions.item(0)?.getAttribute("value") ?? "";
             onChange({
               ...filters,
-              max_supported_tls_version: e.currentTarget.value,
-            })
-          }
+              max_supported_tls_version: selected,
+            });
+          }}
           className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-900"
         >
           <option value="">Any</option>

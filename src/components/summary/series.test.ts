@@ -51,7 +51,7 @@ describe("kxGroupOption", () => {
       X25519MLKEM768: 10,
       X25519: 5,
     });
-    const xAxis = opt.xAxis as { data: string[] };
+    const xAxis = opt.xAxis as { data: string[]; axisLabel?: { interval?: number } };
     const series = opt.series as Array<{
       data: Array<{ itemStyle: { color: string } }>;
     }>;
@@ -59,6 +59,7 @@ describe("kxGroupOption", () => {
     const classicalIdx = xAxis.data.indexOf("X25519");
     expect(series[0]?.data[hybridIdx]?.itemStyle.color).toBe("#2563eb");
     expect(series[0]?.data[classicalIdx]?.itemStyle.color).not.toBe("#2563eb");
+    expect(xAxis.axisLabel?.interval).toBe(0);
   });
 });
 
@@ -68,9 +69,10 @@ describe("cipherDistributionOption", () => {
       TLS13_AES_256_GCM_SHA384: 10,
       TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384: 3,
     });
-    const xAxis = opt.xAxis as { data: string[] };
+    const xAxis = opt.xAxis as { data: string[]; axisLabel?: { show?: boolean } };
     expect(xAxis.data).toContain("TLS13_AES_256_GCM_SHA384");
     expect(xAxis.data).toContain("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
+    expect(xAxis.axisLabel?.show).toBe(false);
   });
 });
 

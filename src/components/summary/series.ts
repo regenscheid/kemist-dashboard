@@ -29,6 +29,9 @@ export function distributionBarOption(
     emptyLabel?: string;
     highlight?: (key: string) => string | null;
     sortDescending?: boolean;
+    hideXAxisLabels?: boolean;
+    forceAllXAxisLabels?: boolean;
+    xAxisLabelRotate?: number;
   },
 ): EChartOption {
   const sortDesc = opts.sortDescending ?? true;
@@ -53,7 +56,11 @@ export function distributionBarOption(
     xAxis: {
       type: "category",
       data: categories,
-      axisLabel: { rotate: categories.length > 6 ? 30 : 0 },
+      axisLabel: {
+        show: opts.hideXAxisLabels ? false : true,
+        interval: opts.forceAllXAxisLabels ? 0 : "auto",
+        rotate: opts.xAxisLabelRotate ?? (categories.length > 6 ? 30 : 0),
+      },
     },
     yAxis: { type: "value", minInterval: 1 },
     series: [
@@ -75,6 +82,8 @@ export function kxGroupOption(groups: Record<string, number>): EChartOption {
   return distributionBarOption(groups, {
     title: "Negotiated KX groups",
     highlight: (k) => (hybridSet.has(k) ? TONE.pqcHighlight : null),
+    forceAllXAxisLabels: true,
+    xAxisLabelRotate: 0,
   });
 }
 
@@ -94,7 +103,10 @@ export function cipherDistributionOption(
     else tls12[key] = count;
   }
   const all = { ...tls13, ...tls12 };
-  return distributionBarOption(all, { title: "Negotiated cipher suites" });
+  return distributionBarOption(all, {
+    title: "Negotiated cipher suites",
+    hideXAxisLabels: true,
+  });
 }
 
 /**

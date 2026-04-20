@@ -104,7 +104,7 @@ export function deriveKxSupportTypes(
     ...tls.cipher_suites.tls1_3,
   ];
   for (const suite of suites) {
-    if (suite.supported !== true) continue;
+    if (extractValue(suite) !== true) continue;
     const category = classifyKxCipherSuiteName(suite.name);
     if (category) found.add(category);
   }
