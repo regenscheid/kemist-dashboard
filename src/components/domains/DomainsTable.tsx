@@ -26,6 +26,7 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { DomainRow } from "../../data/domainRow";
 import { domainColumns } from "./columns";
+import { isRespondingHost } from "./filters";
 
 type Props = {
   rows: DomainRow[];
@@ -136,11 +137,17 @@ export function DomainsTable({ rows, sorting, onSortingChange }: Props) {
           {virtualizer.getVirtualItems().map((virtualRow) => {
             const row = tableRows[virtualRow.index];
             if (!row) return null;
+            const reachable = isRespondingHost(row.original);
             return (
               <tr
                 key={row.id}
                 data-testid="domains-row"
-                className="absolute left-0 hover:bg-slate-50 dark:hover:bg-slate-900/50"
+                className={[
+                  "absolute left-0",
+                  reachable
+                    ? "hover:bg-slate-50 dark:hover:bg-slate-900/50"
+                    : "bg-slate-50 text-slate-500 dark:bg-slate-950/40 dark:text-slate-400",
+                ].join(" ")}
                 style={{
                   transform: `translateY(${virtualRow.start}px)`,
                   height: `${ROW_HEIGHT}px`,

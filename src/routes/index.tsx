@@ -139,15 +139,22 @@ function SummaryRoute() {
         <ThreeBucketStat
           title="Handshake success"
           bucket={selected.handshake_success}
+          caption="Shows how many scanned targets responded at all."
+        />
+        <ScalarStat
+          title="Unreachable"
+          yes={selected.unreachable_count}
+          no={selected.responding_total}
+          caption="Absolute count excluded from posture denominators."
         />
         <ThreeBucketStat
           title="TLS 1.3 adoption"
           bucket={selected.tls_1_3_of_all}
         />
         <ThreeBucketStat
-          title="PQC hybrid (all scans)"
+          title="PQC hybrid (responding hosts)"
           bucket={selected.pqc_hybrid_of_all}
-          caption="Denominator includes handshake failures."
+          caption="Excludes unreachable targets from the denominator."
         />
         <ThreeBucketStat
           title="PQC hybrid (TLS 1.3 only)"

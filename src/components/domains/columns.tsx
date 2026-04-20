@@ -18,6 +18,7 @@ import { Link } from "@tanstack/react-router";
 import { TriState } from "../TriState";
 import type { DomainRow } from "../../data/domainRow";
 import { classify } from "../../lib/triState";
+import { isRespondingHost } from "./filters";
 
 const col = createColumnHelper<DomainRow>();
 
@@ -58,6 +59,7 @@ export const domainColumns = [
     cell: (c) => {
       const row = c.row.original;
       const display = stripPort(row.target);
+      const reachable = isRespondingHost(row);
       return (
         <Link
           to="/scans/$date/domains/$target"
@@ -65,7 +67,10 @@ export const domainColumns = [
             date: row.scan_date,
             target: encodeURIComponent(row.target),
           }}
-          className="block overflow-hidden text-ellipsis whitespace-nowrap font-mono text-sm text-blue-700 hover:underline dark:text-blue-300"
+          className={[
+            "block overflow-hidden text-ellipsis whitespace-nowrap font-mono text-sm hover:underline",
+            reachable ? "text-blue-700 dark:text-blue-300" : "text-slate-500 dark:text-slate-400",
+          ].join(" ")}
           title={row.target}
         >
           {display}
@@ -188,16 +193,20 @@ export const domainColumns = [
     },
   }),
   col.accessor("top_error_category", {
-    header: "Top error",
-    size: 200,
+    header: "Unreachable",
+    size: 220,
     cell: (c) => {
+      const row = c.row.original;
       const v = c.getValue();
+      if (isRespondingHost(row)) {
+        return <span className="text-xs text-slate-500">—</span>;
+      }
       return v ? (
-        <Truncate className="font-mono text-xs" title={v}>
+        <Truncate className="font-mono text-xs text-slate-600 dark:text-slate-400" title={v}>
           {v}
         </Truncate>
       ) : (
-        <span className="text-xs text-slate-500">—</span>
+        <span className="text-xs text-slate-500">unreachable</span>
       );
     },
   }),

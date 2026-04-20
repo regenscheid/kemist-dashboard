@@ -36,6 +36,8 @@ export type ScanAggregates = {
 
 export type ScopeAggregates = {
   total: number;
+  responding_total: number;
+  unreachable_count: number;
   /** Per-card tri-state counts with a stated denominator. */
   handshake_success: ThreeBucket;
   tls_1_3_of_all: ThreeBucket;
@@ -90,7 +92,12 @@ export function buildAggregates(
   };
 }
 
+function isRespondingRow(row: DomainRow): boolean {
+  return row.handshake_succeeded === true;
+}
+
 function buildScopeAggregate(rows: DomainRow[]): ScopeAggregates {
+  const respondingRows = rows.filter((row) => isRespondingRow(row));
   const tlsVersions: Record<string, number> = {};
   const kxGroups: Record<string, number> = {};
   const ciphers: Record<string, number> = {};
@@ -117,14 +124,20 @@ function buildScopeAggregate(rows: DomainRow[]): ScopeAggregates {
   let pqcHybridOfTls13Unk = 0;
 
   for (const row of rows) {
-    // Handshake success (scalar-ish bool | null).
+    // Response state across the full scan set.
     if (row.handshake_succeeded === true) handshakeAffirm += 1;
     else if (row.handshake_succeeded === false) handshakeNeg += 1;
     else handshakeUnk += 1;
 
-    // TLS 1.3 negotiated-of-all. Only probe-true if actually
-    // negotiated; everything else is "not 1.3". We split on the
-    // exact wire-level string kemist emits.
+    // Error categories remain useful across both responding and
+    // unreachable hosts, so we keep this distribution global.
+    incr(errorCategories, row.top_error_category ?? "(none)");
+  }
+
+  for (const row of respondingRows) {
+    // TLS 1.3 adoption among hosts that actually responded to the
+    // TLS probes. Unreachable hosts are excluded from this posture
+    // denominator so the percentages stay meaningful.
     if (row.tls_version === "TLSv1.3" || row.tls_version === "TLSv1_3") {
       tls13Affirm += 1;
     } else if (row.tls_version) {
@@ -133,36 +146,35 @@ function buildScopeAggregate(rows: DomainRow[]): ScopeAggregates {
       tls13Unk += 1;
     }
 
-    // PQC hybrid is full tri-state.
     const hybridCls = classifyObservation(row.pqc_hybrid);
     if (hybridCls === "affirmative") pqcHybridAllAffirm += 1;
     else if (hybridCls === "explicit_negative") pqcHybridAllExplicit += 1;
     else pqcHybridAllUnk += 1;
 
-    // PQC hybrid among TLS 1.3 handshakes (denominator-restricted).
     if (row.tls_version === "TLSv1.3" || row.tls_version === "TLSv1_3") {
       if (hybridCls === "affirmative") pqcHybridOfTls13Affirm += 1;
-      else if (hybridCls === "explicit_negative")
+      else if (hybridCls === "explicit_negative") {
         pqcHybridOfTls13Explicit += 1;
-      else pqcHybridOfTls13Unk += 1;
+      } else {
+        pqcHybridOfTls13Unk += 1;
+      }
     }
 
     if (row.pqc_signature) pqcSigYes += 1;
     else pqcSigNo += 1;
 
-    // Distribution buckets — negotiated values only. The unified raw
-    // cipher/group support maps stay in the detail view; summary
-    // charts intentionally remain provider-agnostic. `?? "(unknown)"`
-    // keeps the Unknown bucket visible rather than dropping the row.
+    // Distribution buckets — negotiated values only for hosts we
+    // could actually measure.
     incr(tlsVersions, row.tls_version ?? "(unknown)");
     incr(kxGroups, row.kx_group ?? "(unknown)");
     incr(ciphers, row.cipher ?? "(unknown)");
     incr(certIssuers, row.cert_issuer_cn ?? "(unknown)");
-    incr(errorCategories, row.top_error_category ?? "(none)");
   }
 
   return {
     total: rows.length,
+    responding_total: respondingRows.length,
+    unreachable_count: rows.length - respondingRows.length,
     handshake_success: {
       affirmative: handshakeAffirm,
       explicit_negative: handshakeNeg,
@@ -173,13 +185,13 @@ function buildScopeAggregate(rows: DomainRow[]): ScopeAggregates {
       affirmative: tls13Affirm,
       explicit_negative: tls13Explicit,
       unknown: tls13Unk,
-      denominator_label: "all scanned targets",
+      denominator_label: "responding hosts",
     },
     pqc_hybrid_of_all: {
       affirmative: pqcHybridAllAffirm,
       explicit_negative: pqcHybridAllExplicit,
       unknown: pqcHybridAllUnk,
-      denominator_label: "all scanned targets",
+      denominator_label: "responding hosts",
     },
     pqc_hybrid_of_tls13: {
       affirmative: pqcHybridOfTls13Affirm,

@@ -39,7 +39,7 @@ export type DomainRow = {
   /** Which batch file holds the full schema-v1 record. */
   batch_id: string;
 
-  /** True if the scanner negotiated any TLS version. */
+  /** True if at least one TLS version probe observed support. */
   handshake_succeeded: boolean | null;
   /** Post-handshake negotiated version, e.g. "TLSv1_3". */
   tls_version: string | null;

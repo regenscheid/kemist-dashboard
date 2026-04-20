@@ -35,9 +35,21 @@ function row(overrides: Partial<DomainRow> = {}): DomainRow {
 }
 
 describe("matchesFilters", () => {
-  it("passes every row when no filters are active", () => {
+  it("passes responding rows when no filters are active", () => {
     const r = row();
     expect(matchesFilters(r, EMPTY_FILTERS)).toBe(true);
+  });
+
+  it("excludes unreachable hosts by default", () => {
+    const unreachable = row({
+      handshake_succeeded: false,
+      tls_version: null,
+      top_error_category: "dns_resolution_failed",
+    });
+    expect(matchesFilters(unreachable, EMPTY_FILTERS)).toBe(false);
+    expect(
+      matchesFilters(unreachable, { ...EMPTY_FILTERS, show_unreachable: true }),
+    ).toBe(true);
   });
 
   it("substring-matches on target (case insensitive)", () => {

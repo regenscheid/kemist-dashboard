@@ -168,6 +168,9 @@ export function toDomainRow(
 
   const leaf = certificates.leaf;
   const negotiated = tls.negotiated;
+  const didRespond = Object.values(tls.versions_offered).some(
+    (obs) => extractValue(obs) === true,
+  );
 
   return {
     target: scan.target,
@@ -177,7 +180,7 @@ export function toDomainRow(
     scope: inferScope(scan.host),
     batch_id: ctx.batch_id,
 
-    handshake_succeeded: negotiated ? true : false,
+    handshake_succeeded: didRespond,
     tls_version: negotiated?.version ?? null,
     cipher: negotiated?.cipher_suite ?? null,
     kx_group: negotiated?.group ?? null,

@@ -29,6 +29,8 @@ export type PqcHybridFilter =
 export type Filters = {
   /** Free-text substring match on target (host:port). */
   q: string;
+  /** Show rows where the scan never observed any supported TLS version. */
+  show_unreachable: boolean;
   /** ANY-of semantics within a facet. Empty = no filter on that facet. */
   tls_versions: string[];
   scopes: Scope[];
@@ -39,6 +41,7 @@ export type Filters = {
 
 export const EMPTY_FILTERS: Filters = {
   q: "",
+  show_unreachable: false,
   tls_versions: [],
   scopes: [],
   pqc_hybrid: [],
@@ -49,6 +52,7 @@ export const EMPTY_FILTERS: Filters = {
 export function isFilterActive(f: Filters): boolean {
   return (
     f.q.length > 0 ||
+    f.show_unreachable ||
     f.tls_versions.length > 0 ||
     f.scopes.length > 0 ||
     f.pqc_hybrid.length > 0 ||
@@ -57,10 +61,17 @@ export function isFilterActive(f: Filters): boolean {
   );
 }
 
+export function isRespondingHost(row: DomainRow): boolean {
+  return row.handshake_succeeded === true;
+}
+
 /**
  * Pure predicate — `true` if the row matches all active facets.
  */
 export function matchesFilters(row: DomainRow, f: Filters): boolean {
+  if (!f.show_unreachable && !isRespondingHost(row)) {
+    return false;
+  }
   if (f.q && !row.target.toLowerCase().includes(f.q.toLowerCase())) {
     return false;
   }

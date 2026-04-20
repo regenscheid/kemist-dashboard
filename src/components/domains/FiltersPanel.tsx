@@ -25,8 +25,9 @@ type Props = {
     scopes: FacetOption<Scope>[];
     error_categories: FacetOption<string>[];
   };
-  totalRows: number;
-  matchedRows: number;
+  totalResponding: number;
+  matchedResponding: number;
+  unreachableCount: number;
 };
 
 const PQC_OPTIONS: FacetOption<PqcHybridFilter>[] = [
@@ -51,8 +52,9 @@ export function FiltersPanel({
   filters,
   onChange,
   options,
-  totalRows,
-  matchedRows,
+  totalResponding,
+  matchedResponding,
+  unreachableCount,
 }: Props) {
   function toggle<K extends keyof Filters>(
     key: K,
@@ -82,8 +84,20 @@ export function FiltersPanel({
         )}
       </div>
       <p className="text-xs text-slate-600 dark:text-slate-400">
-        {matchedRows.toLocaleString()} of {totalRows.toLocaleString()} rows
+        {matchedResponding.toLocaleString()} of {totalResponding.toLocaleString()} responding hosts
+        {` · ${unreachableCount.toLocaleString()} unreachable`}
       </p>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={filters.show_unreachable}
+          onChange={(e) =>
+            onChange({ ...filters, show_unreachable: e.currentTarget.checked })
+          }
+        />
+        <span>Show unreachable hosts</span>
+      </label>
 
       {/* Free-text search */}
       <label className="block">

@@ -62,7 +62,7 @@ describe("buildAggregates — tri-state invariants", () => {
     const rows = [row()];
     const agg = buildAggregates(rows, "2026-04-19", []);
     const all = agg.by_scope.__all;
-    expect(all?.pqc_hybrid_of_all.denominator_label).toBe("all scanned targets");
+    expect(all?.pqc_hybrid_of_all.denominator_label).toBe("responding hosts");
     expect(all?.pqc_hybrid_of_tls13.denominator_label).toBe(
       "TLS 1.3 handshakes only",
     );
@@ -79,6 +79,7 @@ describe("buildAggregates — tri-state invariants", () => {
         pqc_hybrid: { value: true, method: "probe" },
       }),
       row({
+        handshake_succeeded: false,
         tls_version: null,
         pqc_hybrid: { value: null, method: "error", reason: "x" },
       }),
@@ -89,11 +90,11 @@ describe("buildAggregates — tri-state invariants", () => {
     expect(all?.pqc_hybrid_of_tls13.affirmative).toBe(1);
     expect(all?.pqc_hybrid_of_tls13.explicit_negative).toBe(0);
     expect(all?.pqc_hybrid_of_tls13.unknown).toBe(0);
-    // pqc_hybrid_of_all counts all three — 2 affirmative, 0 negative,
-    // 1 unknown.
+    // pqc_hybrid_of_all now uses only responding hosts as its denominator.
     expect(all?.pqc_hybrid_of_all.affirmative).toBe(2);
     expect(all?.pqc_hybrid_of_all.explicit_negative).toBe(0);
-    expect(all?.pqc_hybrid_of_all.unknown).toBe(1);
+    expect(all?.pqc_hybrid_of_all.unknown).toBe(0);
+    expect(all?.unreachable_count).toBe(1);
   });
 
   it("bucketizes rows by scope and emits __all as the cross-scope roll-up", () => {

@@ -15,6 +15,7 @@ import { FiltersPanel } from "../components/domains/FiltersPanel";
 import {
   EMPTY_FILTERS,
   buildFacetOptions,
+  isRespondingHost,
   matchesFilters,
   type CertExpiryWindow,
   type Filters,
@@ -28,6 +29,7 @@ import { useDomains, useLatestScanDate } from "../db/useDomains";
 type DomainsSearch = {
   date?: string;
   q?: string;
+  show_unreachable?: boolean;
   tls?: string[];
   scope?: Scope[];
   pqc?: PqcHybridFilter[];
@@ -64,9 +66,12 @@ export const Route = createFileRoute("/domains/")({
       if (x === "expired" || x === "lt30" || x === "lt90") return x;
       return "any";
     };
+    const asBool = (x: unknown): boolean =>
+      x === true || x === "true" || x === "1";
     return {
       ...(typeof s.date === "string" ? { date: s.date } : {}),
       ...(typeof s.q === "string" && s.q.length > 0 ? { q: s.q } : {}),
+      ...(asBool(s.show_unreachable) ? { show_unreachable: true } : {}),
       tls: arr(s.tls),
       scope: asScopes(s.scope),
       pqc: asPqc(s.pqc),
@@ -84,6 +89,7 @@ export const Route = createFileRoute("/domains/")({
 function searchToFilters(s: DomainsSearch): Filters {
   return {
     q: s.q ?? "",
+    show_unreachable: s.show_unreachable ?? false,
     tls_versions: s.tls ?? [],
     scopes: s.scope ?? [],
     pqc_hybrid: s.pqc ?? [],
@@ -101,6 +107,7 @@ function searchToFilters(s: DomainsSearch): Filters {
 function filtersToSearch(f: Filters): Partial<DomainsSearch> {
   const out: Partial<DomainsSearch> = {};
   if (f.q) out.q = f.q;
+  if (f.show_unreachable) out.show_unreachable = true;
   if (f.tls_versions.length) out.tls = f.tls_versions;
   if (f.scopes.length) out.scope = f.scopes;
   if (f.pqc_hybrid.length) out.pqc = f.pqc_hybrid;
@@ -127,11 +134,24 @@ function DomainsRoute() {
   // Memoize the `rows ?? []` fallback so downstream memos have a
   // stable reference when `rows` is undefined (first render).
   const all = useMemo(() => rows ?? [], [rows]);
+  const responding = useMemo(
+    () => all.filter((r) => isRespondingHost(r)),
+    [all],
+  );
   const matched = useMemo(
     () => all.filter((r) => matchesFilters(r, filters)),
     [all, filters],
   );
-  const facetOptions = useMemo(() => buildFacetOptions(all), [all]);
+  const matchedResponding = useMemo(
+    () => matched.filter((r) => isRespondingHost(r)).length,
+    [matched],
+  );
+  const unreachableCount = all.length - responding.length;
+  const facetBase = filters.show_unreachable ? all : responding;
+  const facetOptions = useMemo(
+    () => buildFacetOptions(facetBase),
+    [facetBase],
+  );
 
   function setFilters(next: Filters) {
     const patch = filtersToSearch(next);
@@ -142,6 +162,7 @@ function DomainsRoute() {
       search: (prev) => {
         const cleared: DomainsSearch = { ...prev };
         delete cleared.q;
+        delete cleared.show_unreachable;
         delete cleared.tls;
         delete cleared.scope;
         delete cleared.pqc;
@@ -179,8 +200,9 @@ function DomainsRoute() {
           filters={filters}
           onChange={setFilters}
           options={facetOptions}
-          totalRows={all.length}
-          matchedRows={matched.length}
+          totalResponding={responding.length}
+          matchedResponding={matchedResponding}
+          unreachableCount={unreachableCount}
         />
       </div>
       <div className="space-y-3">
@@ -196,6 +218,10 @@ function DomainsRoute() {
           )}
         </header>
         {renderStatusBanner(status)}
+        <p className="text-sm text-slate-600 dark:text-slate-400">
+          {matchedResponding.toLocaleString()} of {responding.length.toLocaleString()} responding hosts
+          {` · ${unreachableCount.toLocaleString()} unreachable`}
+        </p>
         {(status.kind === "ready" || rows !== undefined) && (
           <DomainsTable
             rows={matched}
