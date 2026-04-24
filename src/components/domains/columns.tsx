@@ -65,7 +65,7 @@ export const domainColumns = [
           to="/scans/$date/domains/$target"
           params={{
             date: row.scan_date,
-            target: encodeURIComponent(row.target),
+            target: row.target,
           }}
           className={[
             "block overflow-hidden text-ellipsis whitespace-nowrap font-mono text-sm hover:underline",

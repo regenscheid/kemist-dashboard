@@ -41,8 +41,8 @@ export const Route = createFileRoute("/scans/$date/domains/$target")({
 });
 
 function DetailRoute() {
-  const { date, target: encodedTarget } = Route.useParams();
-  const target = useMemo(() => decodeURIComponent(encodedTarget), [encodedTarget]);
+  const { date, target: rawTarget } = Route.useParams();
+  const target = useMemo(() => decodeURIComponent(rawTarget), [rawTarget]);
 
   const [record, setRecord] = useState<KemistScanResultSchemaV1 | null>(null);
   const [provenance, setProvenance] = useState<Provenance | null>(null);
