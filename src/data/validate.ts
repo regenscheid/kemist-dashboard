@@ -161,20 +161,20 @@ export function validateScan(
     }
   }
 
-  // ── HARD: capabilities.provider_kx_groups must match across
+  // ── HARD: capabilities.probed_kx_groups must match across
   //    batches (per-scan invariant — divergence distorts PQC
   //    aggregates). Reference is the first batch's list.
-  const firstKxGroups = batches[0]?.records[0]?.capabilities.provider_kx_groups;
+  const firstKxGroups = batches[0]?.records[0]?.capabilities.probed_kx_groups;
   if (firstKxGroups) {
     const firstJoined = [...firstKxGroups].sort().join(",");
     for (const batch of batches) {
       for (let i = 0; i < batch.records.length; i++) {
         const record = batch.records[i];
         if (!record) continue;
-        const joined = [...record.capabilities.provider_kx_groups].sort().join(",");
+        const joined = [...record.capabilities.probed_kx_groups].sort().join(",");
         if (joined !== firstJoined) {
           hardFailures.push(
-            `batch ${batch.batch_id} record ${i} has different provider_kx_groups than the reference batch — PQC aggregates would be inconsistent`,
+            `batch ${batch.batch_id} record ${i} has different probed_kx_groups than the reference batch — PQC aggregates would be inconsistent`,
           );
           // One flag per batch is enough; breaking out avoids flooding
           // the log with one entry per record.
@@ -214,19 +214,19 @@ export function validateScan(
     }
   }
 
-  // ── SOFT: differing provider_cipher_suites ────────────────────
+  // ── SOFT: differing probed_cipher_suites ──────────────────────
   const firstCipherSuites =
-    batches[0]?.records[0]?.capabilities.provider_cipher_suites;
+    batches[0]?.records[0]?.capabilities.probed_cipher_suites;
   if (firstCipherSuites) {
     const firstJoined = [...firstCipherSuites].sort().join(",");
     for (const batch of batches) {
       for (const record of batch.records) {
-        const joined = [...record.capabilities.provider_cipher_suites]
+        const joined = [...record.capabilities.probed_cipher_suites]
           .sort()
           .join(",");
         if (joined !== firstJoined) {
           softWarnings.push(
-            `batch ${batch.batch_id} has different provider_cipher_suites than the reference batch`,
+            `batch ${batch.batch_id} has different probed_cipher_suites than the reference batch`,
           );
           break;
         }

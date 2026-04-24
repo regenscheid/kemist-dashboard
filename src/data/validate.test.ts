@@ -111,14 +111,14 @@ describe("validateScan — HARD FAIL branches", () => {
     ).toBe(true);
   });
 
-  it("flags provider_kx_groups divergence across batches", () => {
+  it("flags probed_kx_groups divergence across batches", () => {
     const manifest = makeManifest([
       { batch_id: "batch-001", count: 1 },
       { batch_id: "batch-002", count: 1 },
     ]);
     const divergent = clone(nistRecord);
-    divergent.capabilities.provider_kx_groups = [
-      ...divergent.capabilities.provider_kx_groups,
+    divergent.capabilities.probed_kx_groups = [
+      ...divergent.capabilities.probed_kx_groups,
       "NonStandardGroup",
     ];
     divergent.scan = { ...divergent.scan, target: "other.gov:443", host: "other.gov" };
@@ -129,7 +129,7 @@ describe("validateScan — HARD FAIL branches", () => {
     const result = validateScan(manifest, batches, validate);
     expect(result.ok).toBe(false);
     expect(
-      result.hardFailures.some((m) => m.includes("provider_kx_groups")),
+      result.hardFailures.some((m) => m.includes("probed_kx_groups")),
     ).toBe(true);
   });
 });

@@ -20,14 +20,19 @@ import type { KemistScanResultSchemaV1 } from "../data/schema";
 import type { Provenance } from "../components/ProvenanceStrip";
 import { ProvenanceStrip } from "../components/ProvenanceStrip";
 import {
+  AlpnProbeSection,
   CertificatesSection,
+  ChannelBindingSection,
   CipherSuitesSection,
+  DowngradeSignalingSection,
   ErrorsSection,
   ExtensionsSection,
   KxGroupsSection,
   NegotiatedSection,
   ProtocolSupportSection,
   ScanMetadataSection,
+  SessionResumptionSection,
+  SignatureAlgorithmPolicyProbeSection,
   ValidationSection,
 } from "../components/detail/sections";
 
@@ -158,6 +163,13 @@ function DetailRoute() {
         <CipherSuitesSection ciphers={record.tls.cipher_suites} />
         <KxGroupsSection groups={record.tls.groups} />
         <ExtensionsSection extensions={record.tls.extensions} />
+        <DowngradeSignalingSection downgrade={record.tls.downgrade_signaling} />
+        <SessionResumptionSection resumption={record.tls.session_resumption} />
+        <SignatureAlgorithmPolicyProbeSection
+          probe={record.tls.signature_algorithm_policy_probe}
+        />
+        <ChannelBindingSection channel={record.tls.channel_binding} />
+        <AlpnProbeSection probes={record.tls.alpn_probe} />
         <CertificatesSection certificates={record.certificates} />
         <ValidationSection validation={record.validation} />
         <ErrorsSection errors={record.errors} />

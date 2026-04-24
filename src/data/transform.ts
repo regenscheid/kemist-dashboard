@@ -178,7 +178,7 @@ export function toDomainRow(
     alpn: negotiated?.alpn ?? null,
 
     pqc_hybrid: aggregateHybridGroups(tls.groups.tls1_3),
-    pqc_signature: leaf?.is_pqc_signature ?? false,
+    pqc_signature: leaf?.pqc_signature_family != null,
 
     cert_issuer_cn: leaf?.issuer_cn ?? null,
     cert_expiry: leaf?.not_after ?? null,
