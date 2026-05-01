@@ -38,8 +38,9 @@ export type Filters = {
   /** Single-select highest-supported-version facet. Empty = no filter. */
   max_supported_tls_version: string;
   kx_support: KxSupportFilter[];
-  error_categories: string[];
   cert_expiry: CertExpiryWindow;
+  /** Single-select organization. Empty = no filter. */
+  organization: string;
 };
 
 export const EMPTY_FILTERS: Filters = {
@@ -48,8 +49,8 @@ export const EMPTY_FILTERS: Filters = {
   tls_versions: [],
   max_supported_tls_version: "",
   kx_support: [],
-  error_categories: [],
   cert_expiry: "any",
+  organization: "",
 };
 
 export function isFilterActive(f: Filters): boolean {
@@ -59,8 +60,8 @@ export function isFilterActive(f: Filters): boolean {
     f.tls_versions.length > 0 ||
     f.max_supported_tls_version.length > 0 ||
     f.kx_support.length > 0 ||
-    f.error_categories.length > 0 ||
-    f.cert_expiry !== "any"
+    f.cert_expiry !== "any" ||
+    f.organization.length > 0
   );
 }
 
@@ -96,12 +97,15 @@ export function matchesFilters(row: DomainRow, f: Filters): boolean {
       return false;
     }
   }
-  if (f.error_categories.length > 0) {
-    const cat = row.top_error_category ?? "(none)";
-    if (!f.error_categories.includes(cat)) return false;
-  }
   if (f.cert_expiry !== "any") {
     if (!matchesCertExpiry(row.cert_expiry, f.cert_expiry)) return false;
+  }
+  if (f.organization.length > 0) {
+    // Substring match (case-insensitive) so a typeable combobox can
+    // narrow the table while the user is mid-type. Exact selections
+    // from the datalist suggestions still match cleanly.
+    const haystack = (row.organization ?? "").toLowerCase();
+    if (!haystack.includes(f.organization.toLowerCase())) return false;
   }
   return true;
 }
@@ -144,12 +148,12 @@ export function buildFacetOptions(rows: DomainRow[]): {
   tls_versions: FacetOption<string>[];
   max_supported_tls_versions: FacetOption<string>[];
   kx_support: FacetOption<KxSupportFilter>[];
-  error_categories: FacetOption<string>[];
+  organizations: FacetOption<string>[];
 } {
   const tls = new Map<string, number>();
   const maxTls = new Map<string, number>();
   const kx = new Map<KxSupportFilter, number>();
-  const errs = new Map<string, number>();
+  const orgs = new Map<string, number>();
   for (const row of rows) {
     const supported = getSupportedTlsVersions(row);
     if (supported.length === 0) {
@@ -159,7 +163,7 @@ export function buildFacetOptions(rows: DomainRow[]): {
     }
     incr(maxTls, getMaxSupportedTlsVersion(row) ?? "(unknown)");
     for (const bucket of getKxSupportTypes(row)) incr(kx, bucket);
-    incr(errs, row.top_error_category ?? "(none)");
+    incr(orgs, row.organization ?? "(none)");
   }
   return {
     tls_versions: [...tls.entries()]
@@ -171,8 +175,8 @@ export function buildFacetOptions(rows: DomainRow[]): {
     kx_support: [...kx.entries()]
       .sort((a, b) => compareKxSupportTypes(a[0], b[0]))
       .map(([option, count]) => ({ option, count })),
-    error_categories: [...errs.entries()]
-      .sort((a, b) => b[1] - a[1])
+    organizations: [...orgs.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([option, count]) => ({ option, count })),
   };
 }

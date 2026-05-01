@@ -219,6 +219,55 @@ export function toneFor(obs: TriStateInput): TriStateTone {
 }
 
 /**
+ * Three-class collapse for the design's TriPill primitive: aff / neg
+ * / unk. The fuller seven-class taxonomy is preserved through
+ * `reasonText()` (tooltip) and `methodLabel()` so call-sites that
+ * need the finer distinction (Method column in obs-tables, ECharts
+ * legends) can still surface it. Visual primitives — pill, bar
+ * segment, table row tint — read from this collapsed view.
+ */
+export type TriPillClass = "aff" | "neg" | "unk";
+
+export function triPillClass(obs: TriStateInput): TriPillClass {
+  if (isAffirmative(obs)) return "aff";
+  if (isExplicitNegative(obs)) return "neg";
+  return "unk";
+}
+
+/**
+ * Glyph for the design's three visible classes — `+` / `−` / `?`.
+ * Distinct from `glyphFor()` (which returns the seven-class glyphs
+ * `✓ ✗ ● ○ ? — ⚠`) so call-sites that want the finer disambiguation
+ * can still get it.
+ */
+export function triPillGlyph(cls: TriPillClass): string {
+  switch (cls) {
+    case "aff":
+      return "+";
+    case "neg":
+      return "−";
+    case "unk":
+      return "?";
+  }
+}
+
+/**
+ * Generic-voice label for the three-class pill — never editorialises
+ * a result as "good" or "bad", and never references vulnerability.
+ * Field names carry the meaning; the pill carries the polarity.
+ */
+export function triPillLabel(cls: TriPillClass): string {
+  switch (cls) {
+    case "aff":
+      return "supported";
+    case "neg":
+      return "rejected";
+    case "unk":
+      return "unknown";
+  }
+}
+
+/**
  * Short glyph for pill / segment rendering. Shape is load-bearing
  * for colorblind users — never use color alone to distinguish
  * states. Shape + text is the minimum.

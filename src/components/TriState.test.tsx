@@ -12,36 +12,78 @@ function take(key: string): TriStateInput {
   return entry;
 }
 
-describe("<TriState> pill", () => {
-  it("renders status text and carries the reason as an aria-label", () => {
+describe("<TriState> pill (three-class TriPill)", () => {
+  it("renders the generic 'supported' label and a `+` glyph for affirmative", () => {
     render(<TriState observation={take("observation_bool_affirmative")} />);
     const pill = screen.getByRole("status");
-    expect(pill).toHaveTextContent("Supported");
+    expect(pill).toHaveTextContent("supported");
+    expect(pill).toHaveTextContent("+");
     expect(pill).toHaveAccessibleName(/supported.*method: probed/i);
   });
 
-  it("uses amber tone for errored probes", () => {
+  it("renders 'rejected' with a `−` glyph for explicit negatives", () => {
+    render(
+      <TriState observation={take("observation_bool_explicit_negative")} />,
+    );
+    const pill = screen.getByRole("status");
+    expect(pill).toHaveTextContent("rejected");
+    expect(pill).toHaveTextContent("−");
+  });
+
+  it("renders 'unknown' with a `?` glyph for not-probed observations", () => {
+    render(<TriState observation={take("observation_bool_not_probed")} />);
+    const pill = screen.getByRole("status");
+    expect(pill).toHaveTextContent("unknown");
+    expect(pill).toHaveTextContent("?");
+  });
+
+  it("uses the unk tone for errored probes (collapsed to unknown)", () => {
     const { container } = render(
       <TriState observation={take("observation_bool_error")} />,
     );
-    // amber pill: the tone class string includes "amber".
-    expect(container.querySelector("span.bg-amber-50, span.dark\\:bg-amber-900\\/30")).toBeTruthy();
+    // Three-class collapse — error becomes unk; the visual class is bg-unk-bg.
+    expect(container.querySelector("span.bg-unk-bg")).toBeTruthy();
   });
 
-  it("surfaces the schema's reason string in the accessible label", () => {
+  it("collapses connection_state observations into aff/neg classes", () => {
+    const { container, rerender } = render(
+      <TriState observation={take("observation_bool_connection_state_true")} />,
+    );
+    expect(container.querySelector("span.bg-aff-bg")).toBeTruthy();
+    rerender(
+      <TriState observation={take("observation_bool_connection_state_false")} />,
+    );
+    expect(container.querySelector("span.bg-neg-bg")).toBeTruthy();
+  });
+
+  it("preserves the schema's reason string in the accessible label", () => {
     render(<TriState observation={take("observation_bool_not_probed")} />);
     const pill = screen.getByRole("status");
-    expect(pill).toHaveAccessibleName(/hello_probe_failed:hello_probe_not_run/);
+    expect(pill).toHaveAccessibleName(
+      /hello_probe_failed:hello_probe_not_run/,
+    );
   });
 
-  it("distinguishes not_probed from not_applicable with distinct glyphs", () => {
-    const { rerender, container } = render(
-      <TriState observation={take("observation_bool_not_probed")} />,
+  it("preserves the seven-class method distinction in the tooltip even when the visible class is collapsed", () => {
+    render(<TriState observation={take("observation_bool_error")} />);
+    const pill = screen.getByRole("status");
+    // Visible label is the generic "unknown" but the tooltip carries
+    // "probe errored" — the finer taxonomy is not lost.
+    expect(pill).toHaveAccessibleName(/probe errored/);
+    expect(pill).toHaveAccessibleName(
+      /unexpected_alert_during_probe: internal_error/,
     );
-    const notProbedText = container.textContent ?? "";
-    rerender(<TriState observation={take("observation_bool_not_applicable")} />);
-    const notApplicableText = container.textContent ?? "";
-    expect(notProbedText).not.toBe(notApplicableText);
+  });
+
+  it("supports a compact size for table cells", () => {
+    const { container } = render(
+      <TriState
+        observation={take("observation_bool_affirmative")}
+        compact
+      />,
+    );
+    const pill = container.querySelector("span[role='status']");
+    expect(pill?.className).toMatch(/text-\[10\.5px\]/);
   });
 });
 

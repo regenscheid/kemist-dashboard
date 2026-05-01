@@ -24,7 +24,7 @@ type Props = {
     tls_versions: FacetOption<string>[];
     max_supported_tls_versions: FacetOption<string>[];
     kx_support: FacetOption<KxSupportFilter>[];
-    error_categories: FacetOption<string>[];
+    organizations: FacetOption<string>[];
   };
   totalResponding: number;
   matchedResponding: number;
@@ -58,9 +58,12 @@ export function FiltersPanel({
   }
 
   return (
-    <aside className="space-y-6" aria-label="Table filters">
+    <aside
+      className="space-y-5 rounded-md border border-line bg-surface p-4"
+      aria-label="Table filters"
+    >
       <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-3">
           Filters
         </h2>
         {isFilterActive(filters) && (
@@ -73,7 +76,7 @@ export function FiltersPanel({
           </button>
         )}
       </div>
-      <p className="text-xs text-slate-600 dark:text-slate-400">
+      <p className="text-xs text-ink-2">
         {matchedResponding.toLocaleString()} of {totalResponding.toLocaleString()} responding hosts
         {` · ${unreachableCount.toLocaleString()} unreachable`}
       </p>
@@ -91,7 +94,7 @@ export function FiltersPanel({
 
       {/* Free-text search */}
       <label className="block">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <span className="text-xs font-semibold uppercase tracking-wide text-ink-3">
           Target contains
         </span>
         <input
@@ -102,8 +105,35 @@ export function FiltersPanel({
             onChange({ ...filters, q: e.target.value })
           }
           placeholder="example.gov"
-          className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-900"
+          className="mt-1 w-full rounded-md border border-line bg-surface px-2 py-1 text-sm focus:border-accent focus:outline-none"
         />
+      </label>
+
+      <label className="block">
+        <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-3">
+          Organization
+        </span>
+        {/* Typeable combobox: <input list="..."> + <datalist> gives a
+            native dropdown of suggestions while letting users keep
+            typing to narrow the table. Substring-matched in the
+            predicate, so mid-type values still filter. */}
+        <input
+          type="search"
+          list="filters-organization-options"
+          value={filters.organization}
+          // eslint-disable-next-line no-restricted-syntax -- DOM input value, not a tri-state field
+          onChange={(e) => onChange({ ...filters, organization: e.target.value })}
+          placeholder="Any organization"
+          autoComplete="off"
+          className="mt-1 w-full rounded-md border border-line bg-surface px-2 py-1 text-sm focus:border-accent focus:outline-none"
+        />
+        <datalist id="filters-organization-options">
+          {options.organizations.map((opt) => (
+            <option key={opt.option} value={opt.option}>
+              {opt.count > 0 ? `${opt.count}` : ""}
+            </option>
+          ))}
+        </datalist>
       </label>
 
       <FacetBlock
@@ -114,7 +144,7 @@ export function FiltersPanel({
       />
 
       <label className="block">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <span className="text-xs font-semibold uppercase tracking-wide text-ink-3">
           Highest supported version
         </span>
         <select
@@ -127,7 +157,7 @@ export function FiltersPanel({
               max_supported_tls_version: selected,
             });
           }}
-          className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-900"
+          className="mt-1 w-full rounded-md border border-line bg-surface px-2 py-1 text-sm focus:border-accent focus:outline-none"
         >
           <option value="">Any</option>
           {options.max_supported_tls_versions.map((opt) => (
@@ -147,15 +177,8 @@ export function FiltersPanel({
         labelFor={(v) => KX_SUPPORT_LABELS[v]}
       />
 
-      <FacetBlock
-        title="Top error"
-        options={options.error_categories}
-        selected={filters.error_categories}
-        onToggle={(v) => toggle("error_categories", v)}
-      />
-
       <fieldset className="space-y-1">
-        <legend className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <legend className="text-xs font-semibold uppercase tracking-wide text-ink-3">
           Cert expiry window
         </legend>
         {EXPIRY_OPTIONS.map((opt) => (
@@ -196,7 +219,7 @@ function FacetBlock<T extends string>({
   if (options.length === 0) return null;
   return (
     <fieldset className="space-y-1">
-      <legend className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <legend className="text-xs font-semibold uppercase tracking-wide text-ink-3">
         {title}
       </legend>
       <div className="flex flex-col gap-1">
@@ -218,7 +241,7 @@ function FacetBlock<T extends string>({
                 </span>
               </span>
               {opt.count > 0 && (
-                <span className="text-xs text-slate-500">{opt.count}</span>
+                <span className="text-xs text-ink-3">{opt.count}</span>
               )}
             </label>
           );

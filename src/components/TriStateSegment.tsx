@@ -29,20 +29,22 @@ export const emptyCounts = (): TriStateCounts => ({
 
 /**
  * Chart-facing palette. Matches the component tone palette in the
- * pill + text variants so the three views look coherent.
+ * pill + text variants so the three views look coherent. Values are
+ * oklch literals — ECharts accepts CSS color strings, so the same
+ * tokens used in component CSS apply here too.
  *
  * Exported so a non-bar chart (treemap, pie) can reuse the same
  * colors for the same classes. Keep this as the single source of
  * truth for color-by-class decisions.
  */
 export const triStateColors: Record<TriStateClass, string> = {
-  affirmative: "#16a34a",
-  explicit_negative: "#dc2626",
-  connection_state_affirmative: "#2563eb",
-  connection_state_negative: "#60a5fa",
-  unknown_not_probed: "#94a3b8",
-  unknown_not_applicable: "#64748b",
-  unknown_error: "#d97706",
+  affirmative: "oklch(0.55 0.10 150)",
+  explicit_negative: "oklch(0.55 0.06 30)",
+  connection_state_affirmative: "oklch(0.45 0.10 150)",
+  connection_state_negative: "oklch(0.65 0.08 150)",
+  unknown_not_probed: "oklch(0.65 0.005 250)",
+  unknown_not_applicable: "oklch(0.55 0.005 250)",
+  unknown_error: "oklch(0.60 0.10 60)",
 };
 
 /**

@@ -1,13 +1,106 @@
 @import "tailwindcss";
 
-/* Base typography / layout resets for the app shell. Tailwind handles
-   everything else via utility classes at the component level. */
+/* ─────────────────────────────────────────────────────────────────
+ * Design tokens — lifted verbatim from the design handoff prototype.
+ * Source: .claude/design_handoff_kemist_dashboard/design/styles.css
+ *
+ * Tokens are declared twice:
+ *   - in @theme so Tailwind v4 generates utilities (bg-aff-bg,
+ *     text-ink-2, font-mono, etc.)
+ *   - aliased on :root with the short prototype names so component-
+ *     local CSS can use var(--aff-bg) without the color- prefix
+ * ────────────────────────────────────────────────────────────── */
+
+@theme {
+  /* Tri-state — muted, never shouts a verdict */
+  --color-aff: oklch(0.55 0.10 150);
+  --color-aff-bg: oklch(0.96 0.025 150);
+  --color-aff-fg: oklch(0.32 0.10 150);
+
+  --color-neg: oklch(0.55 0.06 30);
+  --color-neg-bg: oklch(0.96 0.020 35);
+  --color-neg-fg: oklch(0.34 0.07 35);
+
+  --color-unk: oklch(0.55 0.005 250);
+  --color-unk-bg: oklch(0.95 0.005 250);
+  --color-unk-fg: oklch(0.40 0.008 250);
+
+  /* Surface */
+  --color-bg: oklch(0.985 0.003 90);
+  --color-surface: oklch(1 0 0);
+  --color-surface-2: oklch(0.97 0.004 90);
+  --color-line: oklch(0.90 0.005 90);
+  --color-line-2: oklch(0.94 0.004 90);
+
+  /* Ink */
+  --color-ink: oklch(0.20 0.008 250);
+  --color-ink-2: oklch(0.40 0.008 250);
+  --color-ink-3: oklch(0.55 0.008 250);
+
+  /* Accent */
+  --color-accent: oklch(0.45 0.10 150);
+  --color-accent-2: oklch(0.55 0.10 150);
+
+  /* Typography */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: "Inter", sans-serif;
+
+  /* Radii */
+  --radius-pill: 999px;
+}
+
 :root {
-  color-scheme: light dark;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light;
+  /* Short aliases — let component CSS lifted from the prototype reference
+     var(--aff-bg) etc. without the Tailwind color- prefix. */
+  --aff: var(--color-aff);
+  --aff-bg: var(--color-aff-bg);
+  --aff-fg: var(--color-aff-fg);
+
+  --neg: var(--color-neg);
+  --neg-bg: var(--color-neg-bg);
+  --neg-fg: var(--color-neg-fg);
+
+  --unk: var(--color-unk);
+  --unk-bg: var(--color-unk-bg);
+  --unk-fg: var(--color-unk-fg);
+
+  --bg: var(--color-bg);
+  --surface: var(--color-surface);
+  --surface-2: var(--color-surface-2);
+  --line: var(--color-line);
+  --line-2: var(--color-line-2);
+  --ink: var(--color-ink);
+  --ink-2: var(--color-ink-2);
+  --ink-3: var(--color-ink-3);
+  --accent: var(--color-accent);
+  --accent-2: var(--color-accent-2);
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01", "ss03";
 }
 
 body {
-  margin: 0;
   min-height: 100vh;
+}
+
+/* Mono utility — disables ligatures so identifiers stay legible. */
+.mono,
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-mono);
+  font-feature-settings: "liga" 0, "calt" 0;
 }

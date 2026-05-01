@@ -18,6 +18,15 @@ import { ensureDomainsSeeded, loadScansIndex } from "./loader";
 import type { DomainRow } from "../data/domainRow";
 import type { ScanList } from "../data/scanList";
 
+export type ScanProvenance = {
+  scan_date: string | null;
+  total_records: number | null;
+  scanner_name: string | null;
+  scanner_version: string | null;
+  schema_version: string | null;
+  build_timestamp: string;
+};
+
 export type SeedStatus =
   | { kind: "idle" }
   | { kind: "loading"; message: string }
@@ -107,4 +116,41 @@ export function useDomains(
   }, [scanDate, scan_list]);
 
   return { rows, status };
+}
+
+/**
+ * Header-strip provenance for the active scan list. Joins the latest
+ * scan date, the manifest's record count + schema version, and a
+ * sample domain row's scanner_version. Returns nullable fields so
+ * the header can render placeholders before the seed completes.
+ */
+export function useScanProvenance(
+  scan_list: ScanList | null,
+): ScanProvenance {
+  const scan_date = useLatestScanDate(scan_list);
+
+  const scanEntry = useLiveQuery(() => {
+    if (!scan_date || !scan_list) return undefined;
+    return db.scans.get([scan_date, scan_list]);
+  }, [scan_date, scan_list]);
+
+  const sample = useLiveQuery(() => {
+    if (!scan_date || !scan_list) return undefined;
+    return db.domains
+      .where("[scan_date+scan_list]")
+      .equals([scan_date, scan_list])
+      .first();
+  }, [scan_date, scan_list]);
+
+  return {
+    scan_date,
+    total_records: scanEntry?.record_count ?? null,
+    // The scanner name is fixed by build-time identity; only the
+    // version varies between runs. DomainRow carries `scanner_version`
+    // verbatim from the schema's `scanner.version`.
+    scanner_name: sample?.scanner_version ? "kemist" : null,
+    scanner_version: sample?.scanner_version ?? null,
+    schema_version: scanEntry?.manifest.batches[0]?.schema_version ?? null,
+    build_timestamp: __APP_BUILD_ID__,
+  };
 }

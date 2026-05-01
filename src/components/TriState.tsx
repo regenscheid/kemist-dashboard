@@ -1,50 +1,63 @@
 /**
- * Pill variant — compact colored badge with glyph + label. Used in
- * tables, stat cards, and dense grids where space is tight but the
- * state must still be unmistakable.
+ * Tri-state pill — three visible classes (aff / neg / unk) with
+ * `+`, `−`, `?` glyphs, oklch token palette. The seven-class
+ * taxonomy from `lib/triState.ts` is preserved in the tooltip /
+ * aria-label / Method columns elsewhere; this primitive is the
+ * design's TriPill verbatim.
  */
-import type { TriStateInput, TriStateTone } from "../lib/triState";
+import type { TriPillClass, TriStateInput } from "../lib/triState";
 import {
-  glyphFor,
   reasonText,
-  statusLabel,
-  toneFor,
+  triPillClass,
+  triPillGlyph,
+  triPillLabel,
 } from "../lib/triState";
 
 type Props = {
   observation: TriStateInput;
-  /** Override label; defaults to statusLabel(obs). */
+  /** Override the default generic label ("supported" / "rejected" / "unknown"). */
   label?: string;
+  /** Compact size for table cells: smaller padding, 10.5px font. */
+  compact?: boolean;
   className?: string;
 };
 
-const toneClasses: Record<TriStateTone, string> = {
-  green:
-    "bg-green-50 text-green-900 ring-green-500/30 dark:bg-green-900/30 dark:text-green-200",
-  red: "bg-red-50 text-red-900 ring-red-500/30 dark:bg-red-900/30 dark:text-red-200",
-  blue: "bg-blue-50 text-blue-900 ring-blue-500/30 dark:bg-blue-900/30 dark:text-blue-200",
-  gray: "bg-slate-100 text-slate-700 ring-slate-400/30 dark:bg-slate-800 dark:text-slate-300",
-  amber:
-    "bg-amber-50 text-amber-900 ring-amber-500/40 dark:bg-amber-900/30 dark:text-amber-200",
+const toneClasses: Record<TriPillClass, string> = {
+  aff: "bg-aff-bg text-aff-fg ring-[color-mix(in_oklch,var(--aff),transparent_70%)]",
+  neg: "bg-neg-bg text-neg-fg ring-[color-mix(in_oklch,var(--neg),transparent_70%)]",
+  unk: "bg-unk-bg text-unk-fg ring-[color-mix(in_oklch,var(--unk),transparent_70%)]",
 };
 
-export function TriState({ observation, label, className = "" }: Props) {
-  const tone = toneFor(observation);
-  const glyph = glyphFor(observation);
-  const text = label ?? statusLabel(observation);
+export function TriState({
+  observation,
+  label,
+  compact = false,
+  className = "",
+}: Props) {
+  const cls = triPillClass(observation);
+  const glyph = triPillGlyph(cls);
+  const text = label ?? triPillLabel(cls);
   const tooltip = reasonText(observation);
+
+  const sizing = compact
+    ? "px-1.5 py-0 text-[10.5px]"
+    : "px-2 py-0.5 text-[11px]";
+
   return (
     <span
       role="status"
       aria-label={tooltip}
       title={tooltip}
-      className={
-        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset " +
-        toneClasses[tone] +
-        (className ? " " + className : "")
-      }
+      className={[
+        "inline-flex items-center gap-1 whitespace-nowrap rounded-full font-medium ring-1 ring-inset",
+        sizing,
+        toneClasses[cls],
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
-      <span aria-hidden="true" className="font-mono">
+      <span aria-hidden="true" className="font-mono font-bold">
         {glyph}
       </span>
       <span>{text}</span>

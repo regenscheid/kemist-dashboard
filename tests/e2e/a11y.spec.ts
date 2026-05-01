@@ -16,19 +16,12 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
 const ROUTES = [
-  { path: "/", label: "Federal-vs-top-20k comparison" },
+  // `/` is the canonical cross-cohort Summary view.
+  { path: "/", label: "Summary (root)" },
   { path: "/about", label: "About" },
-  {
-    path: "/lists/federal-website-index",
-    label: "Federal summary",
-  },
   {
     path: "/lists/federal-website-index/domains",
     label: "Federal domains table",
-  },
-  {
-    path: "/lists/top20k-sfw",
-    label: "Top-20k summary",
   },
   {
     path: "/lists/top20k-sfw/domains",

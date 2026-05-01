@@ -75,8 +75,6 @@ export function DomainsTable({
     overscan: 12,
   });
 
-  // Build the colgroup once — browsers use the first colgroup's
-  // widths to decide the fixed layout before painting rows.
   const colWidths = useMemo(
     () => columns.map((c) => c.size ?? 120),
     [columns],
@@ -86,11 +84,11 @@ export function DomainsTable({
   return (
     <div
       ref={parentRef}
-      className="relative h-[70vh] overflow-auto rounded border border-slate-200 dark:border-slate-800"
+      className="relative h-[70vh] overflow-auto rounded-md border border-line bg-surface"
     >
       <table
         role="table"
-        className="border-separate border-spacing-0 text-sm"
+        className="border-separate border-spacing-0 text-[12px]"
         style={{
           tableLayout: "fixed",
           width: `${totalWidth}px`,
@@ -102,7 +100,7 @@ export function DomainsTable({
             <col key={i} style={{ width: `${w}px` }} />
           ))}
         </colgroup>
-        <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-900">
+        <thead className="sticky top-0 z-10 bg-surface-2">
           {table.getHeaderGroups().map((hg) => (
             <tr key={hg.id}>
               {hg.headers.map((header) => {
@@ -112,20 +110,24 @@ export function DomainsTable({
                   <th
                     key={header.id}
                     scope="col"
-                    className="overflow-hidden whitespace-nowrap border-b border-slate-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:border-slate-700 dark:text-slate-300"
+                    className="overflow-hidden whitespace-nowrap border-b border-line px-3 py-2 text-left font-mono text-[10px] font-semibold uppercase tracking-[0.05em] text-ink-3"
                   >
                     {canSort ? (
                       <button
                         type="button"
                         onClick={header.column.getToggleSortingHandler()}
-                        className="flex items-center gap-1 hover:text-slate-900 dark:hover:text-slate-100"
+                        className="flex items-center gap-1 hover:text-ink"
                       >
                         {flexRender(
                           header.column.columnDef.header,
                           header.getContext(),
                         )}
-                        {sorted === "asc" && "▲"}
-                        {sorted === "desc" && "▼"}
+                        {sorted === "asc" && (
+                          <span aria-hidden="true">▲</span>
+                        )}
+                        {sorted === "desc" && (
+                          <span aria-hidden="true">▼</span>
+                        )}
                       </button>
                     ) : (
                       flexRender(
@@ -141,8 +143,6 @@ export function DomainsTable({
         </thead>
         <tbody
           style={{
-            // Leave room for the virtualized rows to be absolutely
-            // positioned inside the scroll container.
             height: `${virtualizer.getTotalSize()}px`,
             position: "relative",
           }}
@@ -158,8 +158,8 @@ export function DomainsTable({
                 className={[
                   "absolute left-0",
                   reachable
-                    ? "hover:bg-slate-50 dark:hover:bg-slate-900/50"
-                    : "bg-slate-50 text-slate-500 dark:bg-slate-950/40 dark:text-slate-400",
+                    ? "hover:bg-surface-2"
+                    : "bg-surface-2 text-ink-3",
                 ].join(" ")}
                 style={{
                   transform: `translateY(${virtualRow.start}px)`,
@@ -172,7 +172,7 @@ export function DomainsTable({
                 {row.getVisibleCells().map((cell, cellIdx) => (
                   <td
                     key={cell.id}
-                    className="overflow-hidden border-b border-slate-100 px-3 py-1 align-middle dark:border-slate-800"
+                    className="overflow-hidden border-b border-line-2 px-3 py-1 align-middle"
                     style={{ width: `${colWidths[cellIdx]}px` }}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -185,7 +185,7 @@ export function DomainsTable({
             <tr>
               <td
                 colSpan={columns.length}
-                className="px-3 py-8 text-center text-sm text-slate-500"
+                className="px-3 py-8 text-center text-[13px] text-ink-3"
               >
                 No domains match the current filters.
               </td>

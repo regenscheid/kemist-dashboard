@@ -2,48 +2,60 @@
  * Shared frame for every section of the per-domain detail view.
  *
  * Provides:
- *   - heading + optional description
- *   - <details>-like collapse (defaults open)
- *   - a "Copy JSON" button that serializes the underlying observation
- *     slice to the clipboard so anyone quoting a number can include
- *     the raw data
+ *   - h2 heading with optional hint sub-line + right-side slot
+ *   - anchor id for in-page nav (`#negotiation`, `#kx`, etc.)
+ *   - "Copy JSON" button that serializes the section's slice
  */
 
 import { useState } from "react";
 
 type Props = {
-  /** Short noun or phrase — "Protocol support", "Certificate chain". */
+  /** Anchor id used by the in-page nav. Defaults to slugified title. */
+  id?: string;
+  /** Short noun or phrase — "Negotiation", "Validation". */
   title: string;
-  /** Per-section helper text; rendered below the heading. */
+  /** Per-section helper text rendered below the heading. */
   description?: string;
-  /** Raw JSON slice to expose via the Copy button. Unchanged by the
-   *  component — caller serializes the shape they want. */
+  /** Raw JSON slice exposed by the Copy button. */
   json?: unknown;
+  /** Optional right-side slot — toggle, link, etc. */
+  right?: React.ReactNode;
   children: React.ReactNode;
 };
 
-export function DetailSection({ title, description, json, children }: Props) {
-  const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+export function DetailSection({
+  id,
+  title,
+  description,
+  json,
+  right,
+  children,
+}: Props) {
+  const slug = id ?? title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
   return (
     <section
+      id={slug}
       aria-labelledby={`section-${slug}`}
-      className="rounded border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/30"
+      // scroll-mt accounts for the sticky header so anchor jumps don't
+      // hide the section title underneath it
+      className="scroll-mt-24 rounded-md border border-line bg-surface p-5"
     >
-      <div className="flex items-baseline gap-4">
+      <header className="flex items-baseline gap-4">
         <h2
           id={`section-${slug}`}
-          className="text-lg font-semibold tracking-tight"
+          className="text-[18px] font-semibold tracking-[-0.005em]"
         >
           {title}
         </h2>
-        {json !== undefined && <CopyJsonButton json={json} />}
-      </div>
+        <div className="ml-auto flex items-center gap-3">
+          {right}
+          {json !== undefined && <CopyJsonButton json={json} />}
+        </div>
+      </header>
       {description && (
-        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-          {description}
-        </p>
+        <p className="mt-1 text-[13px] text-ink-2">{description}</p>
       )}
-      <div className="mt-3">{children}</div>
+      <div className="mt-4">{children}</div>
     </section>
   );
 }
@@ -64,7 +76,7 @@ function CopyJsonButton({ json }: { json: unknown }) {
     <button
       type="button"
       onClick={onClick}
-      className="ml-auto text-xs text-slate-600 underline-offset-2 hover:underline dark:text-slate-400"
+      className="font-mono text-[11px] uppercase tracking-[0.05em] text-ink-3 underline-offset-2 hover:text-ink hover:underline"
     >
       {state === "idle"
         ? "Copy JSON"
@@ -76,17 +88,12 @@ function CopyJsonButton({ json }: { json: unknown }) {
 }
 
 /**
- * Two-column label/value grid used inside many sections. Keeps
- * styling consistent across `Scan metadata`, `Negotiated handshake`,
- * and similar rows-of-pairs.
+ * Two-column label/value grid for sections like Negotiation or HTTP
+ * KV blocks.
  */
-export function FieldGrid({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function FieldGrid({ children }: { children: React.ReactNode }) {
   return (
-    <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
+    <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-[13px]">
       {children}
     </dl>
   );
@@ -101,7 +108,9 @@ export function Field({
 }) {
   return (
     <>
-      <dt className="text-slate-500 dark:text-slate-400">{label}</dt>
+      <dt className="font-mono text-[11px] uppercase tracking-[0.05em] text-ink-3">
+        {label}
+      </dt>
       <dd className="font-medium">{value}</dd>
     </>
   );

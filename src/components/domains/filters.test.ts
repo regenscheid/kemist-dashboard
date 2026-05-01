@@ -198,13 +198,13 @@ describe("buildFacetOptions", () => {
         tls_version: null,
         supported_tls_versions: [],
         max_supported_tls_version: null,
-        top_error_category: null,
+        organization: null,
       }),
     ];
     const options = buildFacetOptions(rows);
     expect(options.tls_versions.some((o) => o.option === "(unknown)")).toBe(true);
     expect(
-      options.error_categories.some((o) => o.option === "(none)"),
+      options.organizations.some((o) => o.option === "(none)"),
     ).toBe(true);
   });
 });

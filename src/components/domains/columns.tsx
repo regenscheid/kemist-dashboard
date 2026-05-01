@@ -73,10 +73,8 @@ const targetColumn = col.accessor("target", {
           target: row.target,
         }}
         className={[
-          "block overflow-hidden text-ellipsis whitespace-nowrap font-mono text-sm hover:underline",
-          reachable
-            ? "text-blue-700 dark:text-blue-300"
-            : "text-slate-500 dark:text-slate-400",
+          "block overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[12px] hover:underline",
+          reachable ? "text-accent" : "text-ink-3",
         ].join(" ")}
         title={row.target}
       >
@@ -103,36 +101,6 @@ const orgColumn = col.accessor("organization", {
     ),
 });
 
-const branchColumn = col.accessor("branch", {
-  header: "Branch",
-  size: 110,
-  cell: (c) => {
-    const v = c.getValue();
-    return v ? (
-      <Truncate className="text-xs" title={v}>
-        {v}
-      </Truncate>
-    ) : (
-      <span className="text-xs text-slate-500">—</span>
-    );
-  },
-});
-
-const ouColumn = col.accessor("organizational_unit", {
-  header: "Organizational unit",
-  size: 200,
-  cell: (c) => {
-    const v = c.getValue();
-    return v ? (
-      <Truncate className="text-xs" title={v}>
-        {v}
-      </Truncate>
-    ) : (
-      <span className="text-xs text-slate-500">—</span>
-    );
-  },
-});
-
 const rankColumn = col.accessor("top20k_rank", {
   header: "Rank",
   size: 80,
@@ -143,7 +111,7 @@ const rankColumn = col.accessor("top20k_rank", {
         {v.toLocaleString()}
       </span>
     ) : (
-      <span className="text-xs text-slate-500">—</span>
+      <span className="text-[11px] text-ink-3">—</span>
     );
   },
   sortingFn: (a, b) => {
@@ -159,7 +127,7 @@ const tlsColumn = col.accessor("tls_version", {
   cell: (c) => {
     const row = c.row.original;
     if (!isRespondingHost(row)) {
-      return <span className="text-slate-500">—</span>;
+      return <span className="text-ink-3">—</span>;
     }
     const v = c.getValue();
     return v ? (
@@ -167,26 +135,38 @@ const tlsColumn = col.accessor("tls_version", {
         {v}
       </Truncate>
     ) : (
-      <span className="text-slate-500">—</span>
+      <span className="text-ink-3">—</span>
     );
   },
 });
 
 const kxColumn = col.accessor("kx_group", {
   header: "Key exchange",
-  size: 200,
+  size: 160,
   cell: (c) => {
     const row = c.row.original;
     if (!isRespondingHost(row)) {
-      return <span className="text-slate-500">—</span>;
+      return <span className="text-ink-3">—</span>;
     }
     const v = c.getValue();
-    return v ? (
-      <Truncate className="font-mono text-xs" title={v}>
-        {v}
-      </Truncate>
-    ) : (
-      <span className="text-slate-500">—</span>
+    if (!v) return <span className="text-ink-3">—</span>;
+    const isPqc =
+      row.kx_support_types.includes("pqc_hybrid") ||
+      row.kx_support_types.includes("pure_pqc");
+    return (
+      <span
+        className="flex items-center gap-1.5 overflow-hidden whitespace-nowrap"
+        title={v}
+      >
+        <span className="overflow-hidden text-ellipsis font-mono text-[12px]">
+          {v}
+        </span>
+        {isPqc && (
+          <span className="shrink-0 rounded-sm bg-aff-bg px-1 font-mono text-[10px] font-semibold uppercase tracking-[0.05em] text-aff-fg">
+            PQC
+          </span>
+        )}
+      </span>
     );
   },
 });
@@ -201,7 +181,7 @@ const pqcColumn = col.accessor("pqc_support", {
   cell: (c) => {
     const row = c.row.original;
     if (!isRespondingHost(row)) {
-      return <span className="text-slate-500">—</span>;
+      return <span className="text-ink-3">—</span>;
     }
     return <TriState observation={c.getValue()} />;
   },
@@ -223,7 +203,7 @@ const pqcColumn = col.accessor("pqc_support", {
 
 const issuerColumn = col.accessor("cert_issuer_cn", {
   header: "Issuer",
-  size: 220,
+  size: 160,
   cell: (c) => {
     const v = c.getValue();
     return v ? (
@@ -231,7 +211,7 @@ const issuerColumn = col.accessor("cert_issuer_cn", {
         {v}
       </Truncate>
     ) : (
-      <span className="text-slate-500">—</span>
+      <span className="text-ink-3">—</span>
     );
   },
 });
@@ -241,7 +221,7 @@ const expiryColumn = col.accessor("cert_expiry", {
   size: 130,
   cell: (c) => {
     const v = c.getValue();
-    if (!v) return <span className="text-slate-500">—</span>;
+    if (!v) return <span className="text-ink-3">—</span>;
     const t = Date.parse(v);
     if (Number.isNaN(t)) {
       return (
@@ -253,10 +233,10 @@ const expiryColumn = col.accessor("cert_expiry", {
     const daysUntil = Math.round((t - Date.now()) / 86_400_000);
     const tone =
       daysUntil < 0
-        ? "text-red-700 dark:text-red-300"
+        ? "text-neg-fg"
         : daysUntil < 30
-          ? "text-amber-700 dark:text-amber-300"
-          : "text-slate-700 dark:text-slate-300";
+          ? "text-neg-fg"
+          : "text-ink-2";
     const label =
       daysUntil < 0 ? `expired ${-daysUntil}d ago` : `${daysUntil}d left`;
     return (
@@ -276,47 +256,12 @@ const expiryColumn = col.accessor("cert_expiry", {
   },
 });
 
-const errorsColumn = col.accessor("error_count", {
-  header: "Errors",
-  size: 72,
-  cell: (c) => {
-    const n = c.getValue();
-    return n === 0 ? (
-      <span className="text-xs text-slate-500">0</span>
-    ) : (
-      <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
-        {n}
-      </span>
-    );
-  },
-});
-
-const unreachableColumn = col.accessor("top_error_category", {
-  header: "Unreachable",
-  size: 220,
-  cell: (c) => {
-    const row = c.row.original;
-    const v = row.unreachable_summary ?? c.getValue();
-    if (isRespondingHost(row)) {
-      return <span className="text-xs text-slate-500">—</span>;
-    }
-    return v ? (
-      <Truncate
-        className="font-mono text-xs text-slate-600 dark:text-slate-400"
-        title={v}
-      >
-        {v}
-      </Truncate>
-    ) : (
-      <span className="text-xs text-slate-500">unreachable</span>
-    );
-  },
-});
-
 /**
- * Build the column set for a scan list. Federal lists show
- * branch + OU context (the GSA-derived agency hierarchy); top-20k
- * shows rank instead. All other columns are shared.
+ * Build the column set for a scan list. Federal lists drop the
+ * branch/OU context (still available in the per-domain detail);
+ * top-20k drops orgs that aren't surfaced for that cohort and adds
+ * the rank column. Both lists drop errors/unreachable here — those
+ * remain reachable from the per-domain detail.
  */
 export function buildDomainColumns(scan_list: ScanList) {
   const tail = [
@@ -325,13 +270,11 @@ export function buildDomainColumns(scan_list: ScanList) {
     pqcColumn,
     issuerColumn,
     expiryColumn,
-    errorsColumn,
-    unreachableColumn,
   ];
   if (scan_list === "top20k-sfw") {
     return [targetColumn, rankColumn, orgColumn, ...tail];
   }
-  return [targetColumn, orgColumn, branchColumn, ouColumn, ...tail];
+  return [targetColumn, orgColumn, ...tail];
 }
 
 /**
