@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import type { KemistScanResultSchemaV1 } from "./schema";
+import type { KemistScanResultSchemaV2 } from "./schema";
 import {
   buildRecordValidator,
   expectedBatchKey,
@@ -17,9 +17,9 @@ const schema = JSON.parse(
     "utf8",
   ),
 ) as Record<string, unknown>;
-const nistRecord: KemistScanResultSchemaV1 = JSON.parse(
+const nistRecord: KemistScanResultSchemaV2 = JSON.parse(
   readFileSync(path.join(__dirname, "../../fixtures/nist-gov.jsonl"), "utf8"),
-) as KemistScanResultSchemaV1;
+) as KemistScanResultSchemaV2;
 
 function makeManifest(batches: { batch_id: string; count: number }[]): ScanManifest {
   return {
@@ -31,13 +31,13 @@ function makeManifest(batches: { batch_id: string; count: number }[]): ScanManif
       key: expectedBatchKey("2026-04-19", b.batch_id),
       size_bytes: 1024,
       record_count: b.count,
-      schema_version: "1.0.0",
+      schema_version: "2.0.0",
     })),
   };
 }
 
-function clone(record: KemistScanResultSchemaV1): KemistScanResultSchemaV1 {
-  return JSON.parse(JSON.stringify(record)) as KemistScanResultSchemaV1;
+function clone(record: KemistScanResultSchemaV2): KemistScanResultSchemaV2 {
+  return JSON.parse(JSON.stringify(record)) as KemistScanResultSchemaV2;
 }
 
 describe("buildRecordValidator", () => {
@@ -46,10 +46,10 @@ describe("buildRecordValidator", () => {
     expect(validate(nistRecord)).toBe(true);
   });
 
-  it("rejects records with schema_version !== 1.0.0 (Ajv const check)", () => {
+  it("rejects records with schema_version !== 2.0.0 (Ajv const check)", () => {
     const validate = buildRecordValidator(schema);
     const bad = clone(nistRecord);
-    (bad as unknown as { schema_version: string }).schema_version = "2.0.0";
+    (bad as unknown as { schema_version: string }).schema_version = "1.0.0";
     expect(validate(bad)).toBe(false);
   });
 });
@@ -70,7 +70,8 @@ describe("validateScan — HARD FAIL branches", () => {
   it("flags schema major mismatch as HARD", () => {
     const manifest = makeManifest([{ batch_id: "batch-001", count: 1 }]);
     const bad = clone(nistRecord);
-    (bad as unknown as { schema_version: string }).schema_version = "2.0.0";
+    // Major mismatch: dashboard pin is "2", so a v3 (or v1) record is HARD.
+    (bad as unknown as { schema_version: string }).schema_version = "3.0.0";
     const batches: ParsedBatch[] = [{ batch_id: "batch-001", records: [bad] }];
     const result = validateScan(manifest, batches, validate);
     expect(result.ok).toBe(false);

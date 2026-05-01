@@ -21,7 +21,7 @@
 
 import Dexie, { type Table } from "dexie";
 import type { DomainRow } from "../data/domainRow";
-import type { KemistScanResultSchemaV1 } from "../data/schema";
+import type { KemistScanResultSchemaV2 } from "../data/schema";
 import type { ScanAggregates } from "../data/aggregate";
 import type { ScanManifest } from "../data/validate";
 
@@ -39,7 +39,7 @@ export type ScanEntry = {
 export type RecordEntry = {
   target: string;
   scan_date: string;
-  record: KemistScanResultSchemaV1;
+  record: KemistScanResultSchemaV2;
 };
 
 /** Aggregate cache row — one per (date, scope). */

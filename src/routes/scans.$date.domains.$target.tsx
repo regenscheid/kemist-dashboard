@@ -16,11 +16,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { loadRecord, loadScanManifest } from "../db/loader";
-import type { KemistScanResultSchemaV1 } from "../data/schema";
+import type { KemistScanResultSchemaV2 } from "../data/schema";
 import type { Provenance } from "../components/ProvenanceStrip";
 import { ProvenanceStrip } from "../components/ProvenanceStrip";
 import {
   AlpnProbeSection,
+  BehavioralProbesSection,
   CertificatesSection,
   ChannelBindingSection,
   CipherSuitesSection,
@@ -44,9 +45,17 @@ function DetailRoute() {
   const { date, target: rawTarget } = Route.useParams();
   const target = useMemo(() => decodeURIComponent(rawTarget), [rawTarget]);
 
-  const [record, setRecord] = useState<KemistScanResultSchemaV1 | null>(null);
+  const [record, setRecord] = useState<KemistScanResultSchemaV2 | null>(null);
   const [provenance, setProvenance] = useState<Provenance | null>(null);
   const [error, setError] = useState<Error | null>(null);
+
+  // Default-on filters. Cipher rosters and the not-probed rows are
+  // both noisy enough that the in-the-wild signal disappears under
+  // them; users explicitly opting in to the noise is the preferred
+  // ergonomic.
+  const [hideNotProbed, setHideNotProbed] = useState(true);
+  const [hideUnsupportedLegacyCiphers, setHideUnsupportedLegacyCiphers] =
+    useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -157,21 +166,77 @@ function DetailRoute() {
           )}
         </header>
 
+        <fieldset className="rounded border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/40">
+          <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">
+            Filters
+          </legend>
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={hideNotProbed}
+                onChange={(e) => setHideNotProbed(e.target.checked)}
+              />
+              Hide “Not probed” rows
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={hideUnsupportedLegacyCiphers}
+                onChange={(e) =>
+                  setHideUnsupportedLegacyCiphers(e.target.checked)
+                }
+              />
+              Hide unsupported legacy cipher suites
+            </label>
+          </div>
+        </fieldset>
+
         <ScanMetadataSection record={record} />
-        <ProtocolSupportSection versions={record.tls.versions_offered} />
+        <ProtocolSupportSection
+          versions={record.tls.versions_offered}
+          hideNotProbed={hideNotProbed}
+        />
         <NegotiatedSection negotiated={record.tls.negotiated} />
-        <CipherSuitesSection ciphers={record.tls.cipher_suites} />
-        <KxGroupsSection groups={record.tls.groups} />
-        <ExtensionsSection extensions={record.tls.extensions} />
-        <DowngradeSignalingSection downgrade={record.tls.downgrade_signaling} />
-        <SessionResumptionSection resumption={record.tls.session_resumption} />
+        <CipherSuitesSection
+          ciphers={record.tls.cipher_suites}
+          hideNotProbed={hideNotProbed}
+          hideUnsupportedLegacy={hideUnsupportedLegacyCiphers}
+        />
+        <KxGroupsSection groups={record.tls.groups} hideNotProbed={hideNotProbed} />
+        <ExtensionsSection
+          extensions={record.tls.extensions}
+          hideNotProbed={hideNotProbed}
+        />
+        <BehavioralProbesSection
+          probes={record.tls.behavioral_probes}
+          hideNotProbed={hideNotProbed}
+        />
+        <DowngradeSignalingSection
+          downgrade={record.tls.downgrade_signaling}
+          hideNotProbed={hideNotProbed}
+        />
+        <SessionResumptionSection
+          resumption={record.tls.session_resumption}
+          hideNotProbed={hideNotProbed}
+        />
         <SignatureAlgorithmPolicyProbeSection
           probe={record.tls.signature_algorithm_policy_probe}
+          hideNotProbed={hideNotProbed}
         />
-        <ChannelBindingSection channel={record.tls.channel_binding} />
-        <AlpnProbeSection probes={record.tls.alpn_probe} />
+        <ChannelBindingSection
+          channel={record.tls.channel_binding}
+          hideNotProbed={hideNotProbed}
+        />
+        <AlpnProbeSection
+          probes={record.tls.alpn_probe}
+          hideNotProbed={hideNotProbed}
+        />
         <CertificatesSection certificates={record.certificates} />
-        <ValidationSection validation={record.validation} />
+        <ValidationSection
+          validation={record.validation}
+          hideNotProbed={hideNotProbed}
+        />
         <ErrorsSection errors={record.errors} />
       </section>
     </>

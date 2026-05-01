@@ -7,7 +7,7 @@
  * stay browser-safe.
  */
 
-import type { KemistScanResultSchemaV1 } from "./schema";
+import type { KemistScanResultSchemaV2 } from "./schema";
 import type { DomainRow, TriStateObservation } from "./domainRow";
 import { inferScope } from "./scope";
 import {
@@ -60,7 +60,7 @@ export function classifyKxScheme(group: string | null): KxScheme | null {
  *      error > not_probed > not_applicable
  */
 export function aggregateHybridGroups(
-  groups: KemistScanResultSchemaV1["tls"]["groups"]["tls1_3"],
+  groups: KemistScanResultSchemaV2["tls"]["groups"]["tls1_3"],
 ): TriStateObservation {
   const hybrids: TriStateInput[] = PQC_HYBRID_GROUPS.flatMap((name) => {
     const observation = groups[name];
@@ -150,7 +150,7 @@ export type TransformContext = {
  * tri-state-correct rows with `unknown_error` values.
  */
 export function toDomainRow(
-  record: KemistScanResultSchemaV1,
+  record: KemistScanResultSchemaV2,
   ctx: TransformContext,
 ): DomainRow {
   const { scan, tls, certificates, validation, errors, scanner } = record;

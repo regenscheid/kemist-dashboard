@@ -19,7 +19,7 @@
 import Ajv2020 from "ajv/dist/2020";
 import type { ValidateFunction } from "ajv";
 import addFormats from "ajv-formats";
-import type { KemistScanResultSchemaV1 } from "./schema";
+import type { KemistScanResultSchemaV2 } from "./schema";
 
 export type ScanManifest = {
   scan_date: string;
@@ -43,7 +43,7 @@ export type ManifestBatchEntry = {
 
 export type ParsedBatch = {
   batch_id: string;
-  records: KemistScanResultSchemaV1[];
+  records: KemistScanResultSchemaV2[];
 };
 
 export type ValidationResult = {
@@ -52,7 +52,7 @@ export type ValidationResult = {
   softWarnings: string[];
 };
 
-const SUPPORTED_SCHEMA_MAJOR = "1";
+const SUPPORTED_SCHEMA_MAJOR = "2";
 
 /**
  * Build the Ajv validator once per Node process. The schema is the
@@ -63,7 +63,7 @@ const SUPPORTED_SCHEMA_MAJOR = "1";
 export function buildRecordValidator(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   outputSchema: Record<string, any>,
-): ValidateFunction<KemistScanResultSchemaV1> {
+): ValidateFunction<KemistScanResultSchemaV2> {
   const ajv = new Ajv2020({
     // strict:false because the schema uses draft-2020 features that
     // Ajv's strict mode doesn't fully enforce on $defs. Format
@@ -72,7 +72,7 @@ export function buildRecordValidator(
     allErrors: true,
   });
   addFormats(ajv);
-  return ajv.compile<KemistScanResultSchemaV1>(outputSchema);
+  return ajv.compile<KemistScanResultSchemaV2>(outputSchema);
 }
 
 /**
@@ -82,7 +82,7 @@ export function buildRecordValidator(
 export function validateScan(
   manifest: ScanManifest,
   batches: ParsedBatch[],
-  validateRecord: ValidateFunction<KemistScanResultSchemaV1>,
+  validateRecord: ValidateFunction<KemistScanResultSchemaV2>,
 ): ValidationResult {
   const hardFailures: string[] = [];
   const softWarnings: string[] = [];

@@ -21,7 +21,7 @@ export type CipherSuiteEntry = {
   openssl_name?: string;
   provider?: "aws_lc_rs" | "openssl" | "raw_socket";
   /**
-   * Kx + privacy family per src/model/cipher_classification.rs. Values are stable within schema v1.x; new values may be added.
+   * Kx + privacy family per src/model/cipher_classification.rs. Values are stable within schema v2.x; new values may be added.
    */
   classification:
     | "rsa_kex"
@@ -47,6 +47,56 @@ export type ObservationBool = {
   method: Method;
   reason?: string;
 };
+/**
+ * Heartbleed (CVE-2014-0160) probe. `true` = server echoed our oversized-payload heartbeat back, leaking adjacent memory bytes. `false` = server correctly bounds-checked. Distinct from `extensions.heartbeat_present`, which records whether the *extension* itself is advertised.
+ */
+export type ObservationBool1 = {
+  [k: string]: unknown;
+} & {
+  value: boolean | null;
+  method: Method;
+  reason?: string;
+};
+/**
+ * RFC 8701 GREASE echo-detection. `true` = server echoed an unknown extension (protocol violation; non-conformant ClientHello parser). `false` = server correctly ignored the GREASE extension we injected.
+ */
+export type ObservationBool2 = {
+  [k: string]: unknown;
+} & {
+  value: boolean | null;
+  method: Method;
+  reason?: string;
+};
+/**
+ * RFC 8446 §4.1.3 HelloRetryRequest observation — a ServerHello *variant* (random == sentinel), not an extension. `true` = the dedicated TLS 1.3 ClientHello probe (empty `key_share`) saw a ServerHello whose random matched the HRR sentinel — RFC 8446 conformant. `false` = server responded with a regular ServerHello. `not_applicable` when TLS 1.3 isn't supported on the host.
+ */
+export type ObservationBool3 = {
+  [k: string]: unknown;
+} & {
+  value: boolean | null;
+  method: Method;
+  reason?: string;
+};
+/**
+ * Functional RFC 5077 ticket resumption test. The probe captures the session from a first TLS 1.2 handshake and presents it via SSL_set_session on a fresh second handshake; `true` = server accepted the ticket and resumed (SSL_session_reused). Distinct from `session_ticket_issued` (issuance only).
+ */
+export type ObservationBool4 = {
+  [k: string]: unknown;
+} & {
+  value: boolean | null;
+  method: Method;
+  reason?: string;
+};
+/**
+ * Functional RFC 5246 §F.1.4 session-ID resumption test. Same shape as `session_ticket_resumption_accepted` but with SSL_OP_NO_TICKET set on both handshakes so the server falls back to session-ID caching. `true` = server accepted the previously-issued session ID and resumed; `false` = server issued an ID but didn't accept it back (the classic 'IDs assigned but not accepted' pattern).
+ */
+export type ObservationBool5 = {
+  [k: string]: unknown;
+} & {
+  value: boolean | null;
+  method: Method;
+  reason?: string;
+};
 export type ChannelBindingValue = {
   [k: string]: unknown;
 } & {
@@ -61,8 +111,8 @@ export type ChannelBindingValue = {
 /**
  * One record per scanned target. See docs/OUTPUT_SCHEMA.md for field-by-field semantics. Tri-state: {value: false, method: probe} is a real negative, {value: null, method: not_probed|not_applicable|error} is an absence of signal — downstream rule engines MUST distinguish these.
  */
-export interface KemistScanResultSchemaV1 {
-  schema_version: "1.0.0";
+export interface KemistScanResultSchemaV2 {
+  schema_version: "2.0.0";
   scanner: {
     name: string;
     version: string;
@@ -123,6 +173,9 @@ export interface KemistScanResultSchemaV1 {
         [k: string]: GroupObservation;
       };
     };
+    /**
+     * True TLS extensions per RFC 5246 §7.4.1.4 / RFC 8446 §4.2 — fields that ride in the `extensions` block of ClientHello / ServerHello / EncryptedExtensions. Schema v2.0 split non-extension handshake observations (vulnerability probes, ClientHello-body fields, ServerHello variants) out of this block into `behavioral_probes`.
+     */
     extensions: {
       ems: ObservationBool;
       secure_renegotiation: ObservationBool;
@@ -148,8 +201,6 @@ export interface KemistScanResultSchemaV1 {
       alpn_offered: string[];
       encrypt_then_mac: ObservationBool;
       heartbeat_present: ObservationBool;
-      heartbeat_echoes_oversized_payload: ObservationBool;
-      compression_offered: string[];
       truncated_hmac: ObservationBool;
       npn: ObservationBool;
       supported_point_formats_echoed: string[];
@@ -165,8 +216,6 @@ export interface KemistScanResultSchemaV1 {
        * RFC 8879 — server-advertised certificate compression algorithms. Populated via the OpenSSL EncryptedExtensions probe.
        */
       compress_certificate_algorithms?: string[];
-      grease_echoed: ObservationBool;
-      hello_retry_request: ObservationBool;
       /**
        * RFC 9345 delegated-credentials observation. TLS 1.2 path emits presence-only via ServerHello ext 0x0022; TLS 1.3 path parses the leaf CertificateEntry extensions. The scanner records observable fields; it does not verify the DC signature or compare `valid_time` against the wall clock.
        */
@@ -185,8 +234,20 @@ export interface KemistScanResultSchemaV1 {
          */
         delivery_path?: "tls1_3_certificate_entry" | "tls1_2_server_hello";
       };
+    };
+    /**
+     * Non-extension handshake observations — active vulnerability probes (Heartbleed payload echo, ephemeral-key reuse / Raccoon, ROBOT) plus ClientHello-body / ServerHello-variant signals (`compression_offered`, `hello_retry_request`, `grease_echoed`). Schema v2.0 split these out of `extensions`. Polarity (whether `true` is good or bad) varies per field; the scanner records facts and downstream rule engines interpret.
+     */
+    behavioral_probes: {
+      heartbeat_echoes_oversized_payload: ObservationBool1;
       /**
-       * Ephemeral DH/ECDH public-value reuse observation (Raccoon signal, CVE-2020-1968). For each family the scanner runs two sequential TLS 1.2 handshakes against a supported suite and compares the server's ephemeral public value byte-for-byte. `true` = the server reused its ephemeral key across fresh handshakes; `false` = distinct keys; `not_probed` when no suite in the family was observed supported. Scanner records, downstream rule engines interpret.
+       * Compression methods echoed by the server in the ServerHello `compression_methods` field (RFC 5246 §7.4.1.3 — body field, not an extension). Non-empty list = CRIME-vulnerable configuration (RFC 7457 §2.1).
+       */
+      compression_offered: string[];
+      grease_echoed: ObservationBool2;
+      hello_retry_request: ObservationBool3;
+      /**
+       * Ephemeral DH/ECDH public-value reuse observation (Raccoon signal, CVE-2020-1968). For each family the scanner runs two sequential TLS 1.2 handshakes against a supported suite and compares the server's ephemeral public value byte-for-byte. `true` = the server reused its ephemeral key across fresh handshakes; `false` = distinct keys; `not_probed` when no suite in the family was observed supported.
        */
       ephemeral_key_reuse: {
         dhe_public_reused_across_connections: ObservationBool;
@@ -337,7 +398,7 @@ export interface KemistScanResultSchemaV1 {
     hsts?: {};
     preload_list_status?: string;
     /**
-     * Provenance of the HSTS preload snapshot used for this observation. `compiled_in` = the build-time Chromium snapshot bundled in the binary. `runtime_override:<path>` = an override file supplied via `--hsts-preload-list-path`. Consumers comparing results across runs must check this — the `preload_list_status` value is only comparable under the same source snapshot.
+     * Provenance of the HSTS preload snapshot used for this observation. `compiled_in` = the build-time Chromium snapshot bundled in the binary. `cache_refreshed:<path>` = the platform cache file written by `kemist --update-hsts-preload`. `runtime_override:<path>` = an override file supplied via `--hsts-preload-list-path`. Consumers comparing results across runs must check this — the `preload_list_status` value is only comparable under the same source snapshot.
      */
     preload_list_source?: string;
     security_txt?: {
@@ -411,6 +472,24 @@ export interface GroupObservation {
   reason?: string;
   iana_code?: string;
   provider?: "aws_lc_rs" | "openssl";
+  /**
+   * FFDHE TLS 1.2 only. Classification of the prime the server actually returned when its behavior diverged from the codepoint we offered (or when cross-codepoint coherence determined the server isn't honoring `supported_groups`). Vocabulary mirrors `tls.dh_parameters[].classification`.
+   */
+  returned_group?:
+    | "ffdhe2048"
+    | "ffdhe3072"
+    | "ffdhe4096"
+    | "ffdhe6144"
+    | "ffdhe8192"
+    | "modp1024"
+    | "modp1536"
+    | "modp2048"
+    | "modp3072"
+    | "custom";
+  /**
+   * FFDHE TLS 1.2 only. Bit length of the prime the server actually returned. Useful primarily when `returned_group == "custom"`.
+   */
+  returned_prime_bits?: number;
 }
 /**
  * Parsed BasicOCSPResponse per RFC 6960 §4.2. Every field optional except `response_status`; parser is best-effort and tolerant of partial data.
@@ -464,7 +543,7 @@ export interface SkeSigObservation {
   reason?: string;
 }
 /**
- * Session resumption observations. TLS 1.2 ticket + rotation populated via a two-connection OpenSSL probe; TLS 1.3 PSK resumption and 0-RTT are stubbed as NotProbed pending a follow-up workstream.
+ * Session resumption observations. TLS 1.2 issuance + rotation + functional resumption (tickets and session-ID caching) populated via successive OpenSSL probe handshakes; TLS 1.3 PSK resumption + 0-RTT populated via a rustls-backed probe.
  */
 export interface SessionResumption {
   tls1_2: {
@@ -472,6 +551,8 @@ export interface SessionResumption {
     ticket_lifetime_hint_secs?: number;
     session_id_issued: ObservationBool;
     ticket_rotated_across_connections: ObservationBool;
+    session_ticket_resumption_accepted: ObservationBool4;
+    session_id_resumption_accepted: ObservationBool5;
   };
   tls1_3: {
     new_session_ticket_count?: number;

@@ -131,6 +131,10 @@ export function isUnknown(obs: TriStateInput): boolean {
   );
 }
 
+export function isNotProbed(obs: TriStateInput): boolean {
+  return classify(obs) === "unknown_not_probed";
+}
+
 /**
  * Human-facing label for each method. Renderers use this to build
  * tooltip text and ARIA labels; never display the raw enum string.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import type { KemistScanResultSchemaV1 } from "./schema";
+import type { KemistScanResultSchemaV2 } from "./schema";
 import type { DomainRow } from "./domainRow";
 import {
   PQC_HYBRID_GROUPS,
@@ -15,9 +15,9 @@ import { inferScope } from "./scope";
 // in the repo so the transform's happy-path output stays stable across
 // PRs — any regression in denormalization fails a snapshot here
 // before reaching the UI layer.
-const nistRecord: KemistScanResultSchemaV1 = JSON.parse(
+const nistRecord: KemistScanResultSchemaV2 = JSON.parse(
   readFileSync(path.join(__dirname, "../../fixtures/nist-gov.jsonl"), "utf8"),
-) as KemistScanResultSchemaV1;
+) as KemistScanResultSchemaV2;
 
 describe("inferScope (TLD-based v0)", () => {
   it("maps .gov to federal-gov", () => {
@@ -111,7 +111,7 @@ describe("toDomainRow", () => {
 });
 
 describe("aggregateHybridGroups", () => {
-  type GroupsByName = KemistScanResultSchemaV1["tls"]["groups"]["tls1_3"];
+  type GroupsByName = KemistScanResultSchemaV2["tls"]["groups"]["tls1_3"];
 
   const baseNotProbed = {
     method: "not_probed" as const,

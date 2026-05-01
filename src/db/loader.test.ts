@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DomainRow } from "../data/domainRow";
 import type { ScanAggregates } from "../data/aggregate";
 import type { ScanManifest } from "../data/validate";
-import type { KemistScanResultSchemaV1 } from "../data/schema";
+import type { KemistScanResultSchemaV2 } from "../data/schema";
 
 const stores = vi.hoisted(() => ({
   meta: new Map<string, { key: string; value: unknown }>(),
   scans: new Map<string, { date: string; manifest: ScanManifest; record_count: number }>(),
   domains: new Map<string, DomainRow>(),
-  records: new Map<string, { target: string; scan_date: string; record: KemistScanResultSchemaV1 }>(),
+  records: new Map<string, { target: string; scan_date: string; record: KemistScanResultSchemaV2 }>(),
   aggregates: new Map<string, { date: string; scope: string; payload: ScanAggregates }>(),
   key: (left: string, right: string) => `${left}::${right}`,
   reset() {
@@ -76,11 +76,11 @@ vi.mock("./dexie", () => ({
       }),
     },
     records: {
-      put: async (entry: { target: string; scan_date: string; record: KemistScanResultSchemaV1 }) => {
+      put: async (entry: { target: string; scan_date: string; record: KemistScanResultSchemaV2 }) => {
         stores.records.set(stores.key(entry.target, entry.scan_date), entry);
       },
       bulkPut: async (
-        entries: { target: string; scan_date: string; record: KemistScanResultSchemaV1 }[],
+        entries: { target: string; scan_date: string; record: KemistScanResultSchemaV2 }[],
       ) => {
         for (const entry of entries) {
           stores.records.set(stores.key(entry.target, entry.scan_date), entry);
@@ -147,7 +147,7 @@ function makeManifest(target_count: number): ScanManifest {
         key: `raw/dt=${DATE}/batch-001.jsonl.gz`,
         size_bytes: 1024,
         record_count: target_count,
-        schema_version: "1.0.0",
+        schema_version: "2.0.0",
       },
     ],
   };
@@ -226,7 +226,7 @@ describe("loader cache invalidation", () => {
     await db.records.put({
       target: "example.gov:443",
       scan_date: DATE,
-      record: {} as unknown as KemistScanResultSchemaV1,
+      record: {} as unknown as KemistScanResultSchemaV2,
     });
     await db.aggregates.put({
       date: DATE,

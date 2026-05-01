@@ -1,4 +1,4 @@
-import type { KemistScanResultSchemaV1 } from "./schema";
+import type { KemistScanResultSchemaV2 } from "./schema";
 import { extractValue } from "../lib/triState";
 
 export const KX_SUPPORT_ORDER = [
@@ -80,7 +80,7 @@ export function classifyKxCipherSuiteName(
 }
 
 export function deriveKxSupportTypes(
-  tls: KemistScanResultSchemaV1["tls"],
+  tls: KemistScanResultSchemaV2["tls"],
 ): KxSupportType[] {
   const found = new Set<KxSupportType>();
 

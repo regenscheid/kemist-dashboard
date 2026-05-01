@@ -1,4 +1,4 @@
-import type { KemistScanResultSchemaV1 } from "./schema";
+import type { KemistScanResultSchemaV2 } from "./schema";
 import { extractValue } from "../lib/triState";
 
 export const TLS_VERSION_DISPLAY_ORDER = [
@@ -13,7 +13,7 @@ export const TLS_VERSION_DISPLAY_ORDER = [
 
 export type TlsVersionLabel = (typeof TLS_VERSION_DISPLAY_ORDER)[number];
 
-type VersionKey = keyof KemistScanResultSchemaV1["tls"]["versions_offered"];
+type VersionKey = keyof KemistScanResultSchemaV2["tls"]["versions_offered"];
 
 const VERSION_KEY_LABELS: Record<VersionKey, Exclude<TlsVersionLabel, "(unknown)">> = {
   ssl2: "SSL 2.0",
@@ -57,7 +57,7 @@ export function normalizeTlsVersionLabel(
 }
 
 export function deriveSupportedTlsVersions(
-  versionsOffered: KemistScanResultSchemaV1["tls"]["versions_offered"],
+  versionsOffered: KemistScanResultSchemaV2["tls"]["versions_offered"],
 ): Exclude<TlsVersionLabel, "(unknown)">[] {
   return (Object.entries(VERSION_KEY_LABELS) as Array<[
     VersionKey,
@@ -68,7 +68,7 @@ export function deriveSupportedTlsVersions(
 }
 
 export function deriveMaxSupportedTlsVersion(
-  versionsOffered: KemistScanResultSchemaV1["tls"]["versions_offered"],
+  versionsOffered: KemistScanResultSchemaV2["tls"]["versions_offered"],
 ): Exclude<TlsVersionLabel, "(unknown)"> | null {
   const supported = deriveSupportedTlsVersions(versionsOffered);
   return supported.at(-1) ?? null;

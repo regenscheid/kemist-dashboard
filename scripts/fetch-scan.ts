@@ -25,7 +25,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { KemistScanResultSchemaV1 } from "../src/data/schema";
+import type { KemistScanResultSchemaV2 } from "../src/data/schema";
 import type { DomainRow } from "../src/data/domainRow";
 import { toDomainRow } from "../src/data/transform";
 import {
@@ -145,13 +145,13 @@ async function s3GetBytes(
 // ──────────────────────────────────────────────────────────────
 // Parse NDJSON from gzipped bytes (used by both S3 and fixture paths)
 // ──────────────────────────────────────────────────────────────
-function parseNdjson(gzBody: Buffer): KemistScanResultSchemaV1[] {
+function parseNdjson(gzBody: Buffer): KemistScanResultSchemaV2[] {
   const body = gzipSniff(gzBody) ? gunzipSync(gzBody) : gzBody;
   const text = body.toString("utf8");
   const lines = text.split("\n").filter((l) => l.trim().length > 0);
   return lines.map((line, i) => {
     try {
-      return JSON.parse(line) as KemistScanResultSchemaV1;
+      return JSON.parse(line) as KemistScanResultSchemaV2;
     } catch (e) {
       throw new Error(
         `malformed NDJSON line ${i}: ${(e as Error).message} — ${line.slice(0, 80)}…`,
@@ -212,19 +212,19 @@ async function fetchFromFixture(): Promise<{
   );
 
   const trimmed = fixtureText.trim();
-  const records: KemistScanResultSchemaV1[] = (() => {
+  const records: KemistScanResultSchemaV2[] = (() => {
     if (!trimmed) return [];
 
     try {
       const parsed = JSON.parse(trimmed) as
-        | KemistScanResultSchemaV1
-        | KemistScanResultSchemaV1[];
+        | KemistScanResultSchemaV2
+        | KemistScanResultSchemaV2[];
       return Array.isArray(parsed) ? parsed : [parsed];
     } catch {
       return trimmed
         .split("\n")
         .filter((line) => line.trim())
-        .map((line) => JSON.parse(line) as KemistScanResultSchemaV1);
+        .map((line) => JSON.parse(line) as KemistScanResultSchemaV2);
     }
   })();
 
@@ -242,7 +242,7 @@ async function fetchFromFixture(): Promise<{
         key: expectedBatchKey(scan_date, "batch-001"),
         size_bytes: bytes.length,
         record_count: records.length,
-        schema_version: "1.0.0",
+        schema_version: "2.0.0",
       },
     ],
   };

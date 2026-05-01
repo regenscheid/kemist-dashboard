@@ -23,7 +23,7 @@
 
 import { db, resetDatabase, type ScanEntry } from "./dexie";
 import type { DomainRow } from "../data/domainRow";
-import type { KemistScanResultSchemaV1 } from "../data/schema";
+import type { KemistScanResultSchemaV2 } from "../data/schema";
 import type { ScanManifest } from "../data/validate";
 
 /** Entries in `public/data/scans/index.json`. */
@@ -181,7 +181,7 @@ export async function ensureDomainsSeeded(date: string): Promise<void> {
 export async function loadBatchAsRecords(
   date: string,
   batch_id: string,
-): Promise<KemistScanResultSchemaV1[]> {
+): Promise<KemistScanResultSchemaV2[]> {
   // Batches are stored gzipped on disk. Two server behaviors to
   // accommodate:
   //   * Vite dev server: detects the .gz extension, returns
@@ -206,10 +206,10 @@ export async function loadBatchAsRecords(
     ? await gunzipToText(buffer)
     : new TextDecoder("utf-8").decode(bytes);
 
-  const records: KemistScanResultSchemaV1[] = [];
+  const records: KemistScanResultSchemaV2[] = [];
   for (const line of text.split("\n")) {
     if (!line.trim()) continue;
-    records.push(JSON.parse(line) as KemistScanResultSchemaV1);
+    records.push(JSON.parse(line) as KemistScanResultSchemaV2);
   }
   return records;
 }
@@ -241,7 +241,7 @@ async function gunzipToText(buffer: ArrayBuffer): Promise<string> {
 export async function loadRecord(
   date: string,
   target: string,
-): Promise<KemistScanResultSchemaV1> {
+): Promise<KemistScanResultSchemaV2> {
   await loadScanManifest(date);
 
   const cached = await db.records.get([target, date]);

@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { render, screen, within } from "@testing-library/react";
-import type { KemistScanResultSchemaV1 } from "../../data/schema";
+import type { KemistScanResultSchemaV2 } from "../../data/schema";
 import {
+  BehavioralProbesSection,
   CertificatesSection,
   CipherSuitesSection,
   ErrorsSection,
@@ -12,6 +13,7 @@ import {
   NegotiatedSection,
   ProtocolSupportSection,
   ScanMetadataSection,
+  SessionResumptionSection,
   ValidationSection,
 } from "./sections";
 
@@ -20,9 +22,9 @@ import {
 // a section regressed on the tri-state contract — e.g. by
 // pretty-printing `not_probed` observations as rejections.
 
-const nistRecord: KemistScanResultSchemaV1 = JSON.parse(
+const nistRecord: KemistScanResultSchemaV2 = JSON.parse(
   readFileSync(path.join(__dirname, "../../../fixtures/nist-gov.jsonl"), "utf8"),
-) as KemistScanResultSchemaV1;
+) as KemistScanResultSchemaV2;
 
 describe("<ScanMetadataSection>", () => {
   it("shows target, host, port, and scanner identity", () => {
@@ -101,7 +103,10 @@ describe("<KxGroupsSection>", () => {
     expect(screen.getAllByText(/Not probed/).length).toBeGreaterThan(0);
   });
 
-  it("surfaces the ignored-group-offer FFDHE finding as a warning callout", () => {
+  it("surfaces the FFDHE static-dhparam finding with returned-prime context", () => {
+    // v2: cross-codepoint coherence pass downgrades every FFDHE TLS 1.2
+    // row when the static-dhparam fallback is detected. Old string
+    // server_ignored_group_offer_returned_custom_prime is replaced.
     render(
       <KxGroupsSection
         groups={{
@@ -109,16 +114,21 @@ describe("<KxGroupsSection>", () => {
             ffdhe2048: {
               supported: false,
               method: "probe",
-              reason: "server_ignored_group_offer_returned_custom_prime",
+              reason: "server_does_not_honor_supported_groups",
               provider: "openssl",
               iana_code: "0x0100",
+              returned_group: "ffdhe2048",
+              returned_prime_bits: 2048,
             },
           },
           tls1_3: {},
         }}
       />,
     );
-    expect(screen.getByText(/server ignored group offer/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/server does not honor supported_groups/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/ffdhe2048 \(2048-bit\)/)).toBeInTheDocument();
   });
 });
 
@@ -128,6 +138,77 @@ describe("<ExtensionsSection>", () => {
     expect(screen.getByText("Extended master secret")).toBeInTheDocument();
     expect(screen.getByText("Secure renegotiation")).toBeInTheDocument();
     expect(screen.getByText("OCSP stapling")).toBeInTheDocument();
+  });
+
+  it("does not render the v2-relocated behavioral-probe fields", () => {
+    // Schema v2 moved Heartbleed / compression / GREASE / HRR / reuse /
+    // Bleichenbacher into tls.behavioral_probes. They must not appear in
+    // the extensions section anymore.
+    render(<ExtensionsSection extensions={nistRecord.tls.extensions} />);
+    expect(screen.queryByText(/Heartbleed/i)).toBeNull();
+    expect(screen.queryByText(/HelloRetryRequest/)).toBeNull();
+    expect(screen.queryByText(/GREASE echoed/)).toBeNull();
+    expect(screen.queryByText(/ephemeral reuse/i)).toBeNull();
+  });
+});
+
+describe("<BehavioralProbesSection>", () => {
+  it("renders all six behavioral-probe field labels", () => {
+    render(<BehavioralProbesSection probes={nistRecord.tls.behavioral_probes} />);
+    expect(screen.getByText(/Heartbleed echo/)).toBeInTheDocument();
+    expect(screen.getByText(/Compression offered/)).toBeInTheDocument();
+    expect(screen.getByText(/GREASE echoed/)).toBeInTheDocument();
+    expect(screen.getByText(/HelloRetryRequest/)).toBeInTheDocument();
+    expect(screen.getByText(/^DHE ephemeral reuse$/)).toBeInTheDocument();
+    expect(screen.getByText(/^ECDHE ephemeral reuse$/)).toBeInTheDocument();
+  });
+
+  it("uses field-specific verdict copy (not the generic Supported/Rejected vocabulary) for Heartbleed", () => {
+    // Polarity per field: heartbeat=true is Heartbleed-vulnerable, not
+    // 'Supported'. Render synthetic vulnerable + clean records and
+    // assert the verdict copy distinguishes them.
+    const probes = nistRecord.tls.behavioral_probes;
+    const cleanProbes = {
+      ...probes,
+      heartbeat_echoes_oversized_payload: {
+        value: false,
+        method: "probe" as const,
+      },
+    };
+    const vulnProbes = {
+      ...probes,
+      heartbeat_echoes_oversized_payload: {
+        value: true,
+        method: "probe" as const,
+      },
+    };
+    const { rerender } = render(
+      <BehavioralProbesSection probes={cleanProbes} />,
+    );
+    expect(screen.getByText(/Bounds-checked/i)).toBeInTheDocument();
+    rerender(<BehavioralProbesSection probes={vulnProbes} />);
+    expect(screen.getByText(/Vulnerable.*CVE-2014-0160/i)).toBeInTheDocument();
+  });
+});
+
+describe("<SessionResumptionSection>", () => {
+  it("shows issuance and acceptance rows side by side for tickets and session IDs", () => {
+    render(
+      <SessionResumptionSection resumption={nistRecord.tls.session_resumption} />,
+    );
+    // Two pairs (ticket, session-ID); each pair renders Issued +
+    // Resumption-accepted as distinct rows.
+    expect(
+      screen.getByText(/TLS 1\.2 — tickets/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/TLS 1\.2 — session IDs/i),
+    ).toBeInTheDocument();
+    // Issued + Resumption accepted appear under each pair header.
+    expect(screen.getAllByText(/^Issued$/).length).toBeGreaterThanOrEqual(2);
+    expect(
+      screen.getAllByText(/^Resumption accepted$/).length,
+    ).toBeGreaterThanOrEqual(2);
   });
 });
 
