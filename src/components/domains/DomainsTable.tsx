@@ -25,19 +25,32 @@ import {
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { DomainRow } from "../../data/domainRow";
-import { domainColumns } from "./columns";
+import type { ScanList } from "../../data/scanList";
+import { DEFAULT_SCAN_LIST } from "../../data/scanList";
+import { buildDomainColumns } from "./columns";
 import { isRespondingHost } from "./filters";
 
 type Props = {
   rows: DomainRow[];
   sorting: SortingState;
   onSortingChange: (next: SortingState) => void;
+  /**
+   * Active scan list — drives column choice (federal shows
+   * Branch + OU; top-20k shows Rank). Defaults to the canonical
+   * federal list for legacy callers.
+   */
+  scanList?: ScanList;
 };
 
 const ROW_HEIGHT = 36;
 
-export function DomainsTable({ rows, sorting, onSortingChange }: Props) {
-  const columns = useMemo(() => domainColumns, []);
+export function DomainsTable({
+  rows,
+  sorting,
+  onSortingChange,
+  scanList = DEFAULT_SCAN_LIST,
+}: Props) {
+  const columns = useMemo(() => buildDomainColumns(scanList), [scanList]);
 
   const table = useReactTable({
     data: rows,
@@ -171,7 +184,7 @@ export function DomainsTable({ rows, sorting, onSortingChange }: Props) {
           {tableRows.length === 0 && (
             <tr>
               <td
-                colSpan={domainColumns.length}
+                colSpan={columns.length}
                 className="px-3 py-8 text-center text-sm text-slate-500"
               >
                 No domains match the current filters.

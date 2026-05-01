@@ -28,7 +28,7 @@ function makeManifest(batches: { batch_id: string; count: number }[]): ScanManif
     batch_count: batches.length,
     target_count: batches.reduce((s, b) => s + b.count, 0),
     batches: batches.map((b) => ({
-      key: expectedBatchKey("2026-04-19", b.batch_id),
+      key: expectedBatchKey("2026-04-19", "federal-website-index", b.batch_id),
       size_bytes: 1024,
       record_count: b.count,
       schema_version: "2.0.0",
@@ -174,6 +174,78 @@ describe("validateScan — SOFT WARN branches", () => {
     expect(result.ok).toBe(true);
     expect(
       result.softWarnings.some((m) => m.includes("enabled_features")),
+    ).toBe(true);
+  });
+});
+
+describe("validateScan — scan_list contract (orchestrator v0.4.0)", () => {
+  const validate = buildRecordValidator(schema);
+
+  it("accepts a manifest with the canonical scan_list literal", () => {
+    const manifest: ScanManifest = {
+      ...makeManifest([{ batch_id: "batch-001", count: 1 }]),
+      scan_list: "top20k-sfw",
+      metadata_s3_uri: "s3://bucket/path/metadata.jsonl",
+    };
+    // Override the manifest batches to use top-20k prefix since the
+    // manifest's scan_list is now top20k-sfw.
+    manifest.batches = [
+      {
+        key: expectedBatchKey("2026-04-19", "top20k-sfw", "batch-001"),
+        size_bytes: 1024,
+        record_count: 1,
+        schema_version: "2.0.0",
+      },
+    ];
+    const batches: ParsedBatch[] = [
+      { batch_id: "batch-001", records: [clone(nistRecord)] },
+    ];
+    const result = validateScan(manifest, batches, validate);
+    expect(result.ok).toBe(true);
+  });
+
+  it("HARD-fails on a non-canonical scan_list literal", () => {
+    const manifest: ScanManifest = {
+      ...makeManifest([{ batch_id: "batch-001", count: 1 }]),
+      scan_list: "federal",
+    };
+    const batches: ParsedBatch[] = [
+      { batch_id: "batch-001", records: [clone(nistRecord)] },
+    ];
+    const result = validateScan(manifest, batches, validate);
+    expect(result.ok).toBe(false);
+    expect(
+      result.hardFailures.some((m) => m.includes("scan_list")),
+    ).toBe(true);
+  });
+
+  it("SOFT-warns when failed_batches is non-empty", () => {
+    const manifest: ScanManifest = {
+      ...makeManifest([{ batch_id: "batch-001", count: 1 }]),
+      failed_batches: ["batch-099"],
+    };
+    const batches: ParsedBatch[] = [
+      { batch_id: "batch-001", records: [clone(nistRecord)] },
+    ];
+    const result = validateScan(manifest, batches, validate);
+    expect(result.ok).toBe(true);
+    expect(
+      result.softWarnings.some((m) => m.includes("failed all retries")),
+    ).toBe(true);
+  });
+
+  it("SOFT-warns when scan_list is set but metadata_s3_uri is missing", () => {
+    const manifest: ScanManifest = {
+      ...makeManifest([{ batch_id: "batch-001", count: 1 }]),
+      scan_list: "federal-website-index",
+    };
+    const batches: ParsedBatch[] = [
+      { batch_id: "batch-001", records: [clone(nistRecord)] },
+    ];
+    const result = validateScan(manifest, batches, validate);
+    expect(result.ok).toBe(true);
+    expect(
+      result.softWarnings.some((m) => m.includes("metadata_s3_uri")),
     ).toBe(true);
   });
 });

@@ -9,6 +9,11 @@
 
 import type { KemistScanResultSchemaV2 } from "./schema";
 import type { DomainRow, TriStateObservation } from "./domainRow";
+import type { ScanList } from "./scanList";
+import {
+  extractTop20kRank,
+  type TargetMetadata,
+} from "./metadata";
 import { inferScope } from "./scope";
 import {
   deriveKxSupportTypes,
@@ -115,6 +120,61 @@ export function aggregateHybridGroups(
 }
 
 /**
+ * Aggregate tri-state across hybrid AND pure PQC groups — answers
+ * "did the server support any post-quantum key exchange at all?"
+ *
+ * Same rollup rules as `aggregateHybridGroups`; the only difference
+ * is the input set. Cards and the domains-table column read this
+ * to surface PQC adoption without forcing the viewer to inspect
+ * pure-vs-hybrid separately.
+ */
+export function aggregatePqcGroups(
+  groups: KemistScanResultSchemaV2["tls"]["groups"]["tls1_3"],
+): TriStateObservation {
+  const pqcNames = [...PQC_HYBRID_GROUPS, ...PQC_STANDALONE_GROUPS];
+  const observed: TriStateInput[] = pqcNames.flatMap((name) => {
+    const observation = groups[name];
+    return observation ? [observation] : [];
+  });
+
+  if (observed.some((g) => classify(g) === "affirmative")) {
+    return { value: true, method: "probe" };
+  }
+
+  const nonAffirmative = observed.filter(
+    (g) => classify(g) !== "affirmative",
+  );
+  const allEffectivelyNegative =
+    nonAffirmative.length > 0 &&
+    nonAffirmative.every(
+      (g) =>
+        classify(g) === "explicit_negative" || isProviderNoSupport(g),
+    );
+  if (allEffectivelyNegative) {
+    return { value: false, method: "probe" };
+  }
+
+  const priority = ["error", "not_probed", "not_applicable"] as const;
+  for (const method of priority) {
+    const match = observed.find((g) => g.method === method);
+    if (match) {
+      const reason = match.reason;
+      return {
+        value: null,
+        method,
+        ...(reason ? { reason } : {}),
+      };
+    }
+  }
+
+  return {
+    value: null,
+    method: "not_probed",
+    reason: "no_pqc_groups_in_probe_set",
+  };
+}
+
+/**
  * Pick a single error category to surface in the compact column.
  * Returns the first error's category, or null if errors is empty.
  *
@@ -139,6 +199,16 @@ export function summarizeErrorCategories(
 export type TransformContext = {
   scan_date: string;
   batch_id: string;
+  /** The scan_list this batch belongs to. Stamped onto every row. */
+  scan_list: ScanList;
+  /**
+   * Sidecar metadata, target-keyed by hostname. May be empty when
+   * the orchestrator's metadata sidecar was unavailable; in that
+   * case every row gets nulls for organization/branch/OU and
+   * an empty `tags` array. Empty map is genuine "no signal," not
+   * a scan failure.
+   */
+  metadata: Map<string, TargetMetadata>;
 };
 
 /**
@@ -160,12 +230,20 @@ export function toDomainRow(
   const supportedTlsVersions = deriveSupportedTlsVersions(tls.versions_offered);
   const didRespond = supportedTlsVersions.length > 0;
 
+  // Sidecar lookup is keyed by hostname (the orchestrator's contract).
+  // Falls through to nulls + empty tags when the entry is absent —
+  // distinct from "the entry exists but has no organization," which
+  // produces { organization: undefined } and the same render result.
+  const meta = ctx.metadata.get(scan.host);
+  const tags = meta?.tags ?? [];
+
   return {
     target: scan.target,
     host: scan.host,
     port: scan.port,
     scan_date: ctx.scan_date,
     scope: inferScope(scan.host),
+    scan_list: ctx.scan_list,
     batch_id: ctx.batch_id,
 
     handshake_succeeded: didRespond,
@@ -178,6 +256,7 @@ export function toDomainRow(
     alpn: negotiated?.alpn ?? null,
 
     pqc_hybrid: aggregateHybridGroups(tls.groups.tls1_3),
+    pqc_support: aggregatePqcGroups(tls.groups.tls1_3),
     pqc_signature: leaf?.pqc_signature_family != null,
 
     cert_issuer_cn: leaf?.issuer_cn ?? null,
@@ -192,6 +271,12 @@ export function toDomainRow(
     unreachable_summary: summarizeErrorCategories(errors),
 
     scanner_version: scanner.version,
+
+    organization: meta?.organization ?? null,
+    branch: meta?.branch ?? null,
+    organizational_unit: meta?.organizational_unit ?? null,
+    tags,
+    top20k_rank: extractTop20kRank(tags),
   };
 }
 

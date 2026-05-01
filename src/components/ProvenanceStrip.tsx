@@ -15,8 +15,17 @@
  * view's loader.
  */
 
+import type { ScanList } from "../data/scanList";
+import { SCAN_LIST_LABELS } from "../data/scanList";
+
 export type Provenance = {
   scan_date: string | null;
+  /**
+   * Which scan list produced this scan. Null when the strip is
+   * rendered on a list-agnostic view (e.g. About). Display logic
+   * surfaces the list label + cadence next to the scan date.
+   */
+  scan_list: ScanList | null;
   total_records: number | null;
   scanner_name: string | null;
   scanner_version: string | null;
@@ -33,6 +42,7 @@ type Props = {
 export function ProvenanceStrip({ provenance, buildTimestamp }: Props) {
   const {
     scan_date,
+    scan_list,
     total_records,
     scanner_name,
     scanner_version,
@@ -48,6 +58,12 @@ export function ProvenanceStrip({ provenance, buildTimestamp }: Props) {
     >
       <div className="mx-auto max-w-6xl px-6 py-2 text-xs text-slate-600 dark:text-slate-400">
         <dl className="flex flex-wrap gap-x-6 gap-y-1">
+          {scan_list && (
+            <Datum
+              label="List"
+              value={`${SCAN_LIST_LABELS[scan_list].display} · ${SCAN_LIST_LABELS[scan_list].cadence}`}
+            />
+          )}
           <Datum label="Scan" value={scan_date ? formatDate(scan_date) : "—"} />
           <Datum
             label="Records"

@@ -16,12 +16,31 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
 const ROUTES = [
-  { path: "/", label: "Summary" },
-  { path: "/domains", label: "Domains table" },
+  { path: "/", label: "Federal-vs-top-20k comparison" },
   { path: "/about", label: "About" },
   {
-    path: "/scans/2026-01-02/domains/nist.gov%3A443",
+    path: "/lists/federal-website-index",
+    label: "Federal summary",
+  },
+  {
+    path: "/lists/federal-website-index/domains",
+    label: "Federal domains table",
+  },
+  {
+    path: "/lists/top20k-sfw",
+    label: "Top-20k summary",
+  },
+  {
+    path: "/lists/top20k-sfw/domains",
+    label: "Top-20k domains table",
+  },
+  {
+    path: "/lists/federal-website-index/scans/2026-01-02/domains/nist.gov%3A443",
     label: "Detail — nist.gov",
+  },
+  {
+    path: "/lists/top20k-sfw/scans/2026-01-02/domains/github.com%3A443",
+    label: "Detail — github.com (top-20k)",
   },
 ];
 

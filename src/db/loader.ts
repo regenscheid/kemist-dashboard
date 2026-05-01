@@ -1,10 +1,12 @@
 /**
  * Browser-side data loading + caching for the dashboard.
  *
- * Three entry points:
- *   loadScansIndex()          list of available scans
- *   loadScanManifest(date)    per-scan metadata
- *   loadRecord(date, target)  full schema-v1 JSON for one target
+ * Five entry points (every one is scan-list aware in v2):
+ *   loadScansIndex()                          all available (date, scan_list) tuples
+ *   loadScanManifest(date, list)              per-scan metadata
+ *   ensureDomainsSeeded(date, list)           seed Dexie `domains` from index.json
+ *   loadBatchAsRecords(date, list, batch_id)  decompress + parse one batch
+ *   loadRecord(date, list, target)            full schema-v2 JSON for one target
  *
  * `loadRecord` is the hot path for the detail view. Flow:
  *   1. Check Dexie `records` for a cached entry → return immediately
@@ -16,19 +18,21 @@
  *   4. Bulk-insert every record from the batch into Dexie `records`
  *      so subsequent targets in the same batch are instant.
  *
- * All URLs are resolved relative to `import.meta.env.BASE_URL` so
- * the dashboard works at `/kemist-dashboard/` on GitHub Pages and at
- * `/` in `pnpm dev`.
+ * URL convention: `${BASE_URL}data/<scan_list>/<date>/<file>`. Works
+ * at `/kemist-dashboard/` on GitHub Pages and at `/` in `pnpm dev`.
  */
 
 import { db, resetDatabase, type ScanEntry } from "./dexie";
 import type { DomainRow } from "../data/domainRow";
 import type { KemistScanResultSchemaV2 } from "../data/schema";
+import type { ScanList } from "../data/scanList";
+import { isScanList } from "../data/scanList";
 import type { ScanManifest } from "../data/validate";
 
 /** Entries in `public/data/scans/index.json`. */
 export type ScansIndexEntry = {
   date: string;
+  scan_list: ScanList;
   record_count: number;
 };
 
@@ -36,9 +40,23 @@ const BUILD_META_KEY = "app-build-id";
 const SCANS_INDEX_META_KEY = "scans-index-signature";
 const MANIFEST_SIGNATURE_PREFIX = "manifest-signature:";
 
-function dataUrl(relative: string): string {
+function basePrefix(): string {
   const base = import.meta.env.BASE_URL;
-  return `${base.endsWith("/") ? base : base + "/"}data/${relative}`;
+  return base.endsWith("/") ? base : base + "/";
+}
+
+/** Top-level URL for the scans registry (cross-list). */
+function scansIndexUrl(): string {
+  return `${basePrefix()}data/scans/index.json`;
+}
+
+/** Per-scan asset URL: `${BASE_URL}data/<scan_list>/<date>/<file>`. */
+function scanAssetUrl(
+  scan_list: ScanList,
+  date: string,
+  file: string,
+): string {
+  return `${basePrefix()}data/${scan_list}/${date}/${file}`;
 }
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -55,8 +73,10 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 function manifestSignature(manifest: ScanManifest): string {
   return JSON.stringify({
     scan_date: manifest.scan_date,
+    scan_list: manifest.scan_list ?? null,
     scan_start: manifest.scan_start,
     scan_end: manifest.scan_end ?? null,
+    metadata_s3_uri: manifest.metadata_s3_uri ?? null,
     batch_count: manifest.batch_count,
     target_count: manifest.target_count,
     error_count: manifest.error_count ?? 0,
@@ -71,17 +91,35 @@ function manifestSignature(manifest: ScanManifest): string {
   });
 }
 
+/** Composite key for the manifest signature in the meta table. */
+function manifestSignatureKey(date: string, scan_list: ScanList): string {
+  return `${MANIFEST_SIGNATURE_PREFIX}${scan_list}:${date}`;
+}
+
 async function clearAllCachedData(): Promise<void> {
   await resetDatabase();
 }
 
-async function clearScanCaches(date: string): Promise<void> {
+async function clearScanCaches(
+  date: string,
+  scan_list: ScanList,
+): Promise<void> {
+  // Dexie's compound `where` uses the array form of the index.
   await Promise.all([
-    db.scans.delete(date),
-    db.domains.where("scan_date").equals(date).delete(),
-    db.records.where("scan_date").equals(date).delete(),
-    db.aggregates.where("date").equals(date).delete(),
-    db.meta.delete(`${MANIFEST_SIGNATURE_PREFIX}${date}`),
+    db.scans.delete([date, scan_list]),
+    db.domains
+      .where("[scan_date+scan_list]")
+      .equals([date, scan_list])
+      .delete(),
+    db.records
+      .where("[scan_date+scan_list]")
+      .equals([date, scan_list])
+      .delete(),
+    db.aggregates
+      .where("[date+scan_list]")
+      .equals([date, scan_list])
+      .delete(),
+    db.meta.delete(manifestSignatureKey(date, scan_list)),
   ]);
 }
 
@@ -94,19 +132,31 @@ async function ensureBuildFreshness(): Promise<void> {
 }
 
 /**
- * List of scans available on the published site. Ordered
- * newest-first by the fetch pipeline; callers can rely on
- * `result[0]` being the latest.
+ * Cross-list scans registry. Ordered newest-first across both lists;
+ * UI callers filter to a specific scan_list to drive list-scoped
+ * date pickers / "latest" lookups.
  *
- * The scans index is always fetched with `cache: "no-store"` and is
- * treated as the freshness oracle for the rest of the local IndexedDB
- * cache. If the published list changes, we drop all derived tables so
- * the next view reseeds from the current JSON.
+ * Always fetched with `cache: "no-store"` and treated as the
+ * freshness oracle for the rest of the local IndexedDB cache. If the
+ * published list changes, every derived table is dropped so the next
+ * view reseeds from the current JSON.
  */
 export async function loadScansIndex(): Promise<ScansIndexEntry[]> {
   await ensureBuildFreshness();
 
-  const scans = await fetchJson<ScansIndexEntry[]>(dataUrl("scans/index.json"));
+  const raw = await fetchJson<unknown>(scansIndexUrl());
+  // Tolerate legacy single-list shape (no scan_list field) by filtering
+  // it out — those entries are stale by construction once the orchestrator
+  // ships v0.4.0 manifests.
+  const scans: ScansIndexEntry[] = Array.isArray(raw)
+    ? raw.filter(
+        (e): e is ScansIndexEntry =>
+          !!e &&
+          typeof e === "object" &&
+          isScanList((e as { scan_list: unknown }).scan_list),
+      )
+    : [];
+
   const signature = JSON.stringify(scans);
   const cachedSignature = await db.meta.get(SCANS_INDEX_META_KEY);
 
@@ -125,28 +175,32 @@ export async function loadScansIndex(): Promise<ScansIndexEntry[]> {
 
 /**
  * Load the per-scan manifest and revalidate it on every visit. If the
- * published manifest changes for an existing date, the per-date domain,
- * record, and aggregate caches are discarded so the UI doesn't keep
- * serving stale data out of IndexedDB.
+ * published manifest changes for an existing (date, list), the per-scope
+ * domain, record, and aggregate caches are discarded so the UI doesn't
+ * keep serving stale data out of IndexedDB.
  */
-export async function loadScanManifest(date: string): Promise<ScanEntry> {
+export async function loadScanManifest(
+  date: string,
+  scan_list: ScanList,
+): Promise<ScanEntry> {
   await ensureBuildFreshness();
 
   const manifest = await fetchJson<ScanManifest>(
-    dataUrl(`${date}/manifest.json`),
+    scanAssetUrl(scan_list, date, "manifest.json"),
   );
   const signature = manifestSignature(manifest);
-  const signatureKey = `${MANIFEST_SIGNATURE_PREFIX}${date}`;
+  const signatureKey = manifestSignatureKey(date, scan_list);
   const cachedSignature = await db.meta.get(signatureKey);
 
   if (cachedSignature && cachedSignature["value"] !== signature) {
-    await clearScanCaches(date);
+    await clearScanCaches(date, scan_list);
   }
 
   await db.meta.put({ key: signatureKey, value: signature });
 
   const entry: ScanEntry = {
     date,
+    scan_list,
     manifest,
     record_count: manifest.target_count,
   };
@@ -156,18 +210,23 @@ export async function loadScanManifest(date: string): Promise<ScanEntry> {
 
 /**
  * Seed the Dexie `domains` table from `index.json` for a given
- * scan date. Only runs when the table is empty for that date —
- * subsequent calls short-circuit. Chunked inserts yield to the
- * event loop so the first load doesn't stall the main thread on
- * large scans.
+ * (scan_date, scan_list) pair. Only runs when the table is empty for
+ * that pair — subsequent calls short-circuit. Chunked inserts yield
+ * to the event loop so the first load doesn't stall the main thread
+ * on large scans.
  */
-export async function ensureDomainsSeeded(date: string): Promise<void> {
+export async function ensureDomainsSeeded(
+  date: string,
+  scan_list: ScanList,
+): Promise<void> {
   const existing = await db.domains
-    .where("scan_date")
-    .equals(date)
+    .where("[scan_date+scan_list]")
+    .equals([date, scan_list])
     .count();
   if (existing > 0) return;
-  const rows = await fetchJson<DomainRow[]>(dataUrl(`${date}/index.json`));
+  const rows = await fetchJson<DomainRow[]>(
+    scanAssetUrl(scan_list, date, "index.json"),
+  );
   const chunkSize = 5000;
   for (let i = 0; i < rows.length; i += chunkSize) {
     await db.domains.bulkPut(rows.slice(i, i + chunkSize));
@@ -180,6 +239,7 @@ export async function ensureDomainsSeeded(date: string): Promise<void> {
 
 export async function loadBatchAsRecords(
   date: string,
+  scan_list: ScanList,
   batch_id: string,
 ): Promise<KemistScanResultSchemaV2[]> {
   // Batches are stored gzipped on disk. Two server behaviors to
@@ -194,7 +254,7 @@ export async function loadBatchAsRecords(
   // Sniffing the first two bytes for the gzip magic (1f 8b) is the
   // reliable way to tell which case we're in without guessing from
   // response headers, which Pages strips.
-  const url = dataUrl(`${date}/${batch_id}.jsonl.gz`);
+  const url = scanAssetUrl(scan_list, date, `${batch_id}.jsonl.gz`);
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) {
     throw new Error(`fetch ${url}: ${res.status} ${res.statusText}`);
@@ -233,29 +293,32 @@ async function gunzipToText(buffer: ArrayBuffer): Promise<string> {
 }
 
 /**
- * Load the full schema-v1 record for a single target, using Dexie
+ * Load the full schema-v2 record for a single target, using Dexie
  * as a cache. On a miss, fetches the containing batch (which also
  * caches every other target in the batch for cheap subsequent
  * detail-view navigations).
  */
 export async function loadRecord(
   date: string,
+  scan_list: ScanList,
   target: string,
 ): Promise<KemistScanResultSchemaV2> {
-  await loadScanManifest(date);
+  await loadScanManifest(date, scan_list);
 
-  const cached = await db.records.get([target, date]);
+  const cached = await db.records.get([target, date, scan_list]);
   if (cached) return cached.record;
 
   // Need batch_id. The `domains` table has it as a column; seed
   // if not yet.
-  await ensureDomainsSeeded(date);
-  const row = await db.domains.get([target, date]);
+  await ensureDomainsSeeded(date, scan_list);
+  const row = await db.domains.get([target, date, scan_list]);
   if (!row) {
-    throw new Error(`target ${target} not found in scan ${date}`);
+    throw new Error(
+      `target ${target} not found in scan ${scan_list} ${date}`,
+    );
   }
 
-  const records = await loadBatchAsRecords(date, row.batch_id);
+  const records = await loadBatchAsRecords(date, scan_list, row.batch_id);
 
   // Cache every record from this batch — they all share the same
   // batch fetch cost, so the dictionary update is free.
@@ -263,6 +326,7 @@ export async function loadRecord(
     records.map((record) => ({
       target: record.scan.target,
       scan_date: date,
+      scan_list,
       record,
     })),
   );

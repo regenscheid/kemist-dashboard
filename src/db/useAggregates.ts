@@ -1,23 +1,29 @@
 /**
  * React hook for loading + caching the pre-computed
- * `public/data/<date>/aggregates.json` produced by the
+ * `public/data/<scan_list>/<date>/aggregates.json` produced by the
  * fetch-scan pipeline.
  *
- * The data is static per scan date, so we cache via Dexie keyed on
- * `[date+"__all"]`. The summary route holds the fully loaded
- * payload in React state since every card and chart reads from it.
+ * Data is static per (scan_date, scan_list), so we cache via Dexie
+ * keyed on `[date+scan_list+"__all"]`. The summary route holds the
+ * fully loaded payload in React state since every card and chart
+ * reads from it.
  */
 
 import { useEffect, useState } from "react";
 import { db } from "./dexie";
 import type { ScanAggregates } from "../data/aggregate";
+import type { ScanList } from "../data/scanList";
 
-function dataUrl(relative: string): string {
+function aggregatesUrl(scan_list: ScanList, date: string): string {
   const base = import.meta.env.BASE_URL;
-  return `${base.endsWith("/") ? base : base + "/"}data/${relative}`;
+  const prefix = base.endsWith("/") ? base : base + "/";
+  return `${prefix}data/${scan_list}/${date}/aggregates.json`;
 }
 
-export function useAggregates(scanDate: string | null): {
+export function useAggregates(
+  scanDate: string | null,
+  scan_list: ScanList | null,
+): {
   data: ScanAggregates | null;
   error: Error | null;
   loading: boolean;
@@ -27,9 +33,8 @@ export function useAggregates(scanDate: string | null): {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!scanDate) {
-      // Clear state if the caller switches away from a scan. The
-      // effect dep is `scanDate` only, so this runs once per change.
+    if (!scanDate || !scan_list) {
+      // Clear state if the caller switches away.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setData(null);
       setError(null);
@@ -40,16 +45,14 @@ export function useAggregates(scanDate: string | null): {
     setError(null);
     (async () => {
       try {
-        // Check Dexie first. The payload is small (~KBs), so we
-        // cache the whole blob in the `aggregates` store.
-        const cached = await db.aggregates.get([scanDate, "__all"]);
+        const cached = await db.aggregates.get([scanDate, scan_list, "__all"]);
         if (cached) {
           if (cancelled) return;
           setData(cached.payload);
           setLoading(false);
           return;
         }
-        const res = await fetch(dataUrl(`${scanDate}/aggregates.json`), {
+        const res = await fetch(aggregatesUrl(scan_list, scanDate), {
           cache: "no-store",
         });
         if (!res.ok) {
@@ -60,6 +63,7 @@ export function useAggregates(scanDate: string | null): {
         const payload = (await res.json()) as ScanAggregates;
         await db.aggregates.put({
           date: scanDate,
+          scan_list,
           scope: "__all",
           payload,
         });
@@ -75,7 +79,7 @@ export function useAggregates(scanDate: string | null): {
     return () => {
       cancelled = true;
     };
-  }, [scanDate]);
+  }, [scanDate, scan_list]);
 
   return { data, error, loading };
 }

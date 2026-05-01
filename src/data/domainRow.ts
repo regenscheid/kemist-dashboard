@@ -18,6 +18,8 @@
 import type { Method } from "./schema";
 import type { KxSupportType } from "./kxSupport";
 import type { Scope } from "./scope";
+import type { ScanList } from "./scanList";
+import type { Branch } from "./metadata";
 
 /**
  * A normalized tri-state observation. Matches the schema's
@@ -37,6 +39,13 @@ export type DomainRow = {
   scan_date: string;
   /** TLD-inferred cohort; v1 may override via scopes.yaml. */
   scope: Scope;
+  /**
+   * Orchestrator-emitted discriminator — federal vs top-20k. Orthogonal
+   * to `scope`: a `.gov` host always has scope=federal-gov regardless
+   * of which list scanned it; the discriminator says which corpus the
+   * row belongs to.
+   */
+  scan_list: ScanList;
   /** Which batch file holds the full schema-v1 record. */
   batch_id: string;
 
@@ -62,6 +71,14 @@ export type DomainRow = {
    * weakest unknown method (error > not_probed > not_applicable).
    */
   pqc_hybrid: TriStateObservation;
+  /**
+   * Aggregate tri-state across hybrid AND pure PQC groups — answers
+   * "did the server support any post-quantum key exchange (hybrid or
+   * standalone)?". Same rollup semantics as `pqc_hybrid` but with a
+   * broader input set. Powers the domains-table "PQC support" column
+   * and the federal-vs-top20k comparison cards on `/`.
+   */
+  pqc_support: TriStateObservation;
 
   /** `certificates.leaf.is_pqc_signature` verbatim (scalar bool). */
   pqc_signature: boolean;
@@ -79,4 +96,22 @@ export type DomainRow = {
   unreachable_summary: string | null;
 
   scanner_version: string;
+
+  /**
+   * Per-target metadata joined from the orchestrator's sidecar JSONL.
+   * Federal entries carry GSA agency/branch/OU; top-20k entries carry
+   * homepage-scraped organization plus a `rank:N` tag (lifted into
+   * `top20k_rank`). All fields are nullable / empty-default — an
+   * absent sidecar entry is genuine "we couldn't classify," not a
+   * scan failure.
+   */
+  organization: string | null;
+  branch: Branch | null;
+  organizational_unit: string | null;
+  tags: string[];
+  /**
+   * Pre-parsed from the `rank:N` tag. Always null on federal records
+   * and on top-20k records whose tag list lacks a rank entry.
+   */
+  top20k_rank: number | null;
 };

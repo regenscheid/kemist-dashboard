@@ -14,6 +14,7 @@ function row(overrides: Partial<DomainRow> = {}): DomainRow {
     port: 443,
     scan_date: "2026-04-19",
     scope: "federal-gov",
+    scan_list: "federal-website-index",
     batch_id: "batch-001",
     handshake_succeeded: true,
     tls_version: "TLSv1.3",
@@ -24,6 +25,7 @@ function row(overrides: Partial<DomainRow> = {}): DomainRow {
     kx_support_types: ["ecc"],
     alpn: "h2",
     pqc_hybrid: { value: false, method: "probe" },
+    pqc_support: { value: false, method: "probe" },
     pqc_signature: false,
     cert_issuer_cn: "Let's Encrypt",
     cert_expiry: "2026-06-01T00:00:00Z",
@@ -34,6 +36,11 @@ function row(overrides: Partial<DomainRow> = {}): DomainRow {
     top_error_category: null,
     unreachable_summary: null,
     scanner_version: "0.1.0",
+    organization: null,
+    branch: null,
+    organizational_unit: null,
+    tags: [],
+    top20k_rank: null,
     ...overrides,
   };
 }

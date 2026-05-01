@@ -11,6 +11,7 @@ function row(overrides: Partial<DomainRow> = {}): DomainRow {
     port: 443,
     scan_date: "2026-04-19",
     scope: "federal-gov",
+    scan_list: "federal-website-index",
     batch_id: "batch-001",
     handshake_succeeded: true,
     tls_version: "TLSv1.3",
@@ -21,6 +22,7 @@ function row(overrides: Partial<DomainRow> = {}): DomainRow {
     kx_support_types: ["ecc"],
     alpn: "h2",
     pqc_hybrid: { value: false, method: "probe" },
+    pqc_support: { value: false, method: "probe" },
     pqc_signature: false,
     cert_issuer_cn: "Let's Encrypt",
     cert_expiry: "2026-06-01T00:00:00Z",
@@ -31,6 +33,11 @@ function row(overrides: Partial<DomainRow> = {}): DomainRow {
     top_error_category: null,
     unreachable_summary: null,
     scanner_version: "0.1.0",
+    organization: null,
+    branch: null,
+    organizational_unit: null,
+    tags: [],
+    top20k_rank: null,
     ...overrides,
   };
 }
@@ -48,7 +55,7 @@ describe("buildAggregates — tri-state invariants", () => {
         },
       }),
     ];
-    const agg = buildAggregates(rows, "2026-04-19", []);
+    const agg = buildAggregates(rows, "2026-04-19", "federal-website-index", []);
     const all = agg.by_scope.__all;
     expect(all).toBeDefined();
     expect(all?.pqc_hybrid_of_all.affirmative).toBe(1);
@@ -64,7 +71,7 @@ describe("buildAggregates — tri-state invariants", () => {
 
   it("uses denominator_label to distinguish the two PQC hybrid cards", () => {
     const rows = [row()];
-    const agg = buildAggregates(rows, "2026-04-19", []);
+    const agg = buildAggregates(rows, "2026-04-19", "federal-website-index", []);
     const all = agg.by_scope.__all;
     expect(all?.pqc_hybrid_of_all.denominator_label).toBe("responding hosts");
     expect(all?.pqc_hybrid_of_tls13.denominator_label).toBe(
@@ -88,7 +95,7 @@ describe("buildAggregates — tri-state invariants", () => {
         pqc_hybrid: { value: null, method: "error", reason: "x" },
       }),
     ];
-    const agg = buildAggregates(rows, "2026-04-19", []);
+    const agg = buildAggregates(rows, "2026-04-19", "federal-website-index", []);
     const all = agg.by_scope.__all;
     // pqc_hybrid_of_tls13 counts 1 of 1 TLS 1.3 handshake as hybrid.
     expect(all?.pqc_hybrid_of_tls13.affirmative).toBe(1);
@@ -107,7 +114,7 @@ describe("buildAggregates — tri-state invariants", () => {
       row({ scope: "commercial", target: "a.com:443", host: "a.com" }),
       row({ scope: "commercial", target: "b.com:443", host: "b.com" }),
     ];
-    const agg = buildAggregates(rows, "2026-04-19", []);
+    const agg = buildAggregates(rows, "2026-04-19", "federal-website-index", []);
     expect(agg.total_records).toBe(3);
     expect(agg.scopes_present).toEqual(["commercial", "federal-gov"]);
     expect(agg.by_scope.__all?.total).toBe(3);
@@ -117,7 +124,7 @@ describe("buildAggregates — tri-state invariants", () => {
 
   it("propagates validation warnings verbatim into aggregates", () => {
     const warnings = ["mixed scanner versions: 0.1.0, 0.2.0"];
-    const agg = buildAggregates([row()], "2026-04-19", warnings);
+    const agg = buildAggregates([row()], "2026-04-19", "federal-website-index", warnings);
     expect(agg.warnings).toEqual(warnings);
   });
 
@@ -134,7 +141,7 @@ describe("buildAggregates — tri-state invariants", () => {
         max_supported_tls_version: "TLS 1.2",
       }),
     ];
-    const agg = buildAggregates(rows, "2026-04-19", []);
+    const agg = buildAggregates(rows, "2026-04-19", "federal-website-index", []);
     const all = agg.by_scope.__all;
     expect(all?.tls_1_3_of_all.affirmative).toBe(1);
     expect(all?.tls_1_3_of_all.explicit_negative).toBe(1);
@@ -146,10 +153,41 @@ describe("buildAggregates — tri-state invariants", () => {
       row({ tls_version: "TLSv1.3" }),
       row({ tls_version: null }),
     ];
-    const agg = buildAggregates(rows, "2026-04-19", []);
+    const agg = buildAggregates(rows, "2026-04-19", "federal-website-index", []);
     const all = agg.by_scope.__all;
     // Two rows: one "TLSv1.3" and one "(unknown)". Neither is dropped.
     expect(all?.tls_versions["TLSv1.3"]).toBe(1);
     expect(all?.tls_versions["(unknown)"]).toBe(1);
+  });
+
+  it("counts pqc_support distinctly from pqc_hybrid (pure-PQC sites count for support)", () => {
+    // pqc_hybrid=false but pqc_support=true → a host that supports
+    // pure PQC but not hybrid. The aggregator must not collapse
+    // these under hybrid.
+    const rows = [
+      row({
+        pqc_hybrid: { value: false, method: "probe" },
+        pqc_support: { value: true, method: "probe" },
+      }),
+      row({
+        pqc_hybrid: { value: true, method: "probe" },
+        pqc_support: { value: true, method: "probe" },
+      }),
+      row({
+        pqc_hybrid: { value: false, method: "probe" },
+        pqc_support: { value: false, method: "probe" },
+      }),
+    ];
+    const agg = buildAggregates(rows, "2026-04-19", "federal-website-index", []);
+    const all = agg.by_scope.__all;
+    expect(all?.pqc_hybrid_of_all.affirmative).toBe(1);
+    expect(all?.pqc_support_of_all.affirmative).toBe(2);
+    expect(all?.pqc_support_of_all.explicit_negative).toBe(1);
+    expect(all?.pqc_support_of_all.denominator_label).toBe(
+      "responding hosts",
+    );
+    expect(all?.pqc_support_of_tls13.denominator_label).toBe(
+      "TLS 1.3 handshakes only",
+    );
   });
 });

@@ -30,7 +30,7 @@ function AboutRoute() {
         const scans = await loadScansIndex();
         const latest = scans[0];
         if (!latest) return;
-        const scan = await loadScanManifest(latest.date);
+        const scan = await loadScanManifest(latest.date, latest.scan_list);
         if (cancelled) return;
         const batch = scan.manifest.batches[0];
         setProv({

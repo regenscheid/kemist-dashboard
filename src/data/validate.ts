@@ -20,6 +20,7 @@ import Ajv2020 from "ajv/dist/2020";
 import type { ValidateFunction } from "ajv";
 import addFormats from "ajv-formats";
 import type { KemistScanResultSchemaV2 } from "./schema";
+import { isScanList } from "./scanList";
 
 export type ScanManifest = {
   scan_date: string;
@@ -31,6 +32,22 @@ export type ScanManifest = {
   error_count?: number;
   failed_batches?: string[];
   batches: ManifestBatchEntry[];
+  /**
+   * Orchestrator discriminator added in the kemist-orchestrator v0.4.0
+   * contract. Optional for back-compat with manifests written before
+   * that rev; HARD-failed when present but not one of the canonical
+   * literals. Consumers should default missing values to
+   * `DEFAULT_SCAN_LIST` and warn.
+   */
+  scan_list?: string;
+  /**
+   * S3 URI of the per-target metadata sidecar JSONL. Absent on legacy
+   * manifests; SOFT-warned when missing and the sidecar lookup ends
+   * up empty.
+   */
+  metadata_s3_uri?: string;
+  duration_seconds?: number;
+  bytes_written?: number;
 };
 
 export type ManifestBatchEntry = {
@@ -87,6 +104,41 @@ export function validateScan(
   const hardFailures: string[] = [];
   const softWarnings: string[] = [];
 
+  // ── HARD: scan_list literal ───────────────────────────────────
+  // Optional in the manifest for legacy back-compat, but when set
+  // it must be one of the canonical literals.
+  if (
+    manifest.scan_list !== undefined &&
+    !isScanList(manifest.scan_list)
+  ) {
+    hardFailures.push(
+      `manifest scan_list "${manifest.scan_list}" is not one of the canonical values (federal-website-index, top20k-sfw)`,
+    );
+  }
+
+  // ── SOFT: failed_batches ─────────────────────────────────────
+  // The orchestrator gives up after retries; missing records are a
+  // measurement gap, not a deploy-blocking failure. Flag so the UI
+  // surfaces the gap in provenance.
+  if (manifest.failed_batches && manifest.failed_batches.length > 0) {
+    softWarnings.push(
+      `${manifest.failed_batches.length} batch${
+        manifest.failed_batches.length === 1 ? "" : "es"
+      } failed all retries; their records are missing from this scan: ${manifest.failed_batches.join(", ")}`,
+    );
+  }
+
+  // ── SOFT: missing metadata_s3_uri ────────────────────────────
+  // Older manifests (pre-orchestrator-0.4.0) don't carry the URI.
+  // Per-target metadata fields will all be null in that case; warn
+  // so the operator knows the org-context columns are sparse for a
+  // capacity reason, not a data-quality reason.
+  if (manifest.scan_list && !manifest.metadata_s3_uri) {
+    softWarnings.push(
+      "manifest is missing metadata_s3_uri — per-target organization/branch/tags will be empty for this scan",
+    );
+  }
+
   // ── HARD: schema major version pin ─────────────────────────────
   for (const batch of batches) {
     for (let i = 0; i < batch.records.length; i++) {
@@ -102,9 +154,16 @@ export function validateScan(
   }
 
   // ── HARD: manifest ↔ batch consistency ────────────────────────
+  // Use the manifest's scan_list (default federal if absent) to
+  // construct expected keys — top-20k batches live under raw/top20k/.
+  const manifestScanList = isScanList(manifest.scan_list)
+    ? manifest.scan_list
+    : "federal-website-index";
   const manifestBatchKeys = new Set(manifest.batches.map((b) => b.key));
   const batchFileKeys = new Set(
-    batches.map((b) => expectedBatchKey(manifest.scan_date, b.batch_id)),
+    batches.map((b) =>
+      expectedBatchKey(manifest.scan_date, manifestScanList, b.batch_id),
+    ),
   );
   for (const k of manifestBatchKeys) {
     if (!batchFileKeys.has(k)) {
@@ -244,7 +303,26 @@ export function validateScan(
 /**
  * Canonical S3-style key for a batch within a scan partition. Used
  * to reconcile manifest listings against what we actually fetched.
+ *
+ * Two scan-list trees share the same `raw/...` root: federal lives
+ * directly under `raw/dt=...`, top-20k under `raw/top20k/dt=...`.
+ * Pass scan_list to construct the correct key.
  */
-export function expectedBatchKey(scan_date: string, batch_id: string): string {
-  return `raw/dt=${scan_date}/${batch_id}.jsonl.gz`;
+import type { ScanList } from "./scanList";
+
+export function expectedBatchKey(
+  scan_date: string,
+  scan_list: ScanList,
+  batch_id: string,
+): string {
+  const prefix = scanListS3Prefix(scan_list);
+  return `${prefix}dt=${scan_date}/${batch_id}.jsonl.gz`;
+}
+
+/**
+ * Map scan_list to its S3 prefix root. Includes the trailing slash
+ * so callers can concatenate `dt=...` directly.
+ */
+export function scanListS3Prefix(scan_list: ScanList): string {
+  return scan_list === "top20k-sfw" ? "raw/top20k/" : "raw/";
 }

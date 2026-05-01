@@ -88,9 +88,10 @@ TRUST_POLICY=$(cat <<EOF
 EOF
 )
 
-# Permissions: read-only on raw/*, nothing else. Explicitly does not
-# grant access to targets/* (including opt-out.txt) or write
-# anywhere. No KMS.
+# Permissions: read-only on raw/* (scan corpus) + targets/*/metadata.jsonl
+# (per-target sidecar joined into DomainRow as of orchestrator
+# v0.4.0). Critically does NOT include targets/opt-out.txt — the
+# opt-out list is operator-only. No write, no KMS.
 ALERTS_TOPIC_ARN="arn:aws:sns:${AWS_REGION}:${ACCOUNT_ID}:kemist-fleet-alerts"
 PERMISSIONS_POLICY=$(cat <<EOF
 {
@@ -101,6 +102,15 @@ PERMISSIONS_POLICY=$(cat <<EOF
       "Effect": "Allow",
       "Action": "s3:GetObject",
       "Resource": "arn:aws:s3:::${DATA_BUCKET}/raw/*"
+    },
+    {
+      "Sid": "ReadTargetMetadataSidecar",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": [
+        "arn:aws:s3:::${DATA_BUCKET}/targets/*/metadata.jsonl",
+        "arn:aws:s3:::${DATA_BUCKET}/targets/*/top20k/metadata.jsonl"
+      ]
     },
     {
       "Sid": "ListScanPartitions",
@@ -135,7 +145,7 @@ else
     aws iam create-role \
         --role-name "${ROLE_NAME}" \
         --assume-role-policy-document "${TRUST_POLICY}" \
-        --description "OIDC-assumed role for kemist-dashboard GitHub Actions deploy workflow. Read-only on raw/* in the orchestrator's data bucket." \
+        --description "OIDC-assumed role for kemist-dashboard GitHub Actions deploy workflow. Read-only on raw/* and targets/*/metadata.jsonl in the orchestrator's data bucket." \
         --tags Key=Project,Value=kemist-fleet Key=ManagedBy,Value=bootstrap-dashboard \
         >/dev/null
     echo "    created role"
@@ -166,6 +176,9 @@ Verify it works:
   aws sts assume-role-with-web-identity ...    # normally done by GitHub Actions
   pnpm fetch:s3 --bucket ${DATA_BUCKET}        # manual test after deploy
 
-The role has no write, no KMS, no access to targets/* — only
-read-only access to the scan corpus under raw/*.
+The role has no write and no KMS. Read access is limited to:
+  - raw/*                          scan corpus (manifests + batches)
+  - targets/*/metadata.jsonl       per-target metadata sidecar (v0.4.0)
+
+Notably it cannot read targets/opt-out.txt (operator-only).
 EOF
