@@ -121,6 +121,62 @@ export class KemistDatabase extends Dexie {
  */
 export const db = new KemistDatabase();
 
+const DB_NAME = "kemist-dashboard";
+const OPEN_TIMEOUT_MS = 5000;
+
+function reloadPage(): void {
+  if (typeof window !== "undefined") {
+    window.location.reload();
+  }
+}
+
+/**
+ * Recovery path for stuck IndexedDB upgrades. Every table in this DB is
+ * a cache of artifacts under `public/data/`, so wiping it loses nothing —
+ * the next page load reseeds. Used when a schema upgrade is blocked by
+ * another tab, or `db.open()` doesn't resolve within `OPEN_TIMEOUT_MS`.
+ */
+function recoverFromStuckOpen(reason: string): void {
+  console.warn(`kemist-dashboard: ${reason}; resetting IndexedDB.`);
+  try {
+    db.close();
+  } catch {
+    // Already closed or never opened — fine, we're about to delete it.
+  }
+  Dexie.delete(DB_NAME).finally(reloadPage);
+}
+
+// If a newer-schema tab opens, IndexedDB sends `versionchange` to this
+// connection. Dexie installs a default handler, but we make it explicit
+// + reload so any in-flight UI work doesn't hit a closed DB.
+db.on("versionchange", () => {
+  db.close();
+  reloadPage();
+});
+
+// Our own upgrade is blocked by another connection that didn't release
+// on `versionchange` (e.g., a backgrounded tab). Without this handler
+// `db.open()` hangs forever and every Dexie call awaits it, freezing
+// the page until the user clears storage.
+db.on("blocked", () => {
+  recoverFromStuckOpen("IndexedDB upgrade blocked by another tab");
+});
+
+// Backstop: even with the handlers above, a wedged transaction or
+// browser-specific bug can keep `open()` from resolving. Force-recover
+// after a short grace period rather than leaving the UI hung.
+if (typeof window !== "undefined") {
+  const timer = window.setTimeout(() => {
+    recoverFromStuckOpen("IndexedDB open timed out");
+  }, OPEN_TIMEOUT_MS);
+  db.open()
+    .then(() => window.clearTimeout(timer))
+    .catch((err) => {
+      window.clearTimeout(timer);
+      recoverFromStuckOpen(`IndexedDB open failed: ${(err as Error).message}`);
+    });
+}
+
 export async function resetDatabase(): Promise<void> {
   await Promise.all([
     db.meta.clear(),
