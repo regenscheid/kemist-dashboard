@@ -70,6 +70,31 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+/**
+ * Fetch a JSON payload that may arrive gzipped. Same dual-server
+ * handling as `loadBatchAsRecords`:
+ *   - Vite dev / hosts that decompress transparently → bytes are
+ *     already plain JSON, gzip magic absent.
+ *   - GitHub Pages / Cloudflare Pages serving the .gz file as-is →
+ *     bytes carry the 1f 8b magic and must be gunzipped client-side.
+ *
+ * Used by the index.json seed (compressed at fetch time so the
+ * largest cohort's row table stays under deploy size limits).
+ */
+async function fetchGzippedJson<T>(url: string): Promise<T> {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`fetch ${url}: ${res.status} ${res.statusText}`);
+  }
+  const buffer = await res.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  const isGzip = bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
+  const text = isGzip
+    ? await gunzipToText(buffer)
+    : new TextDecoder("utf-8").decode(bytes);
+  return JSON.parse(text) as T;
+}
+
 function manifestSignature(manifest: ScanManifest): string {
   return JSON.stringify({
     scan_date: manifest.scan_date,
@@ -224,8 +249,8 @@ export async function ensureDomainsSeeded(
     .equals([date, scan_list])
     .count();
   if (existing > 0) return;
-  const rows = await fetchJson<DomainRow[]>(
-    scanAssetUrl(scan_list, date, "index.json"),
+  const rows = await fetchGzippedJson<DomainRow[]>(
+    scanAssetUrl(scan_list, date, "index.json.gz"),
   );
   const chunkSize = 5000;
   for (let i = 0; i < rows.length; i += chunkSize) {

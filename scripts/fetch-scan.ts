@@ -458,10 +458,15 @@ async function writeScanArtifacts(
   const scanDir = path.join(publicDataDir, scan_list, scan_date);
   await ensureDir(scanDir);
   await fs.writeFile(path.join(scanDir, "manifest.json"), manifestJson);
-  await fs.writeFile(
-    path.join(scanDir, "index.json"),
-    JSON.stringify(rows, null, 0),
+  // index.json carries the full DomainRow table seed for one scan
+  // and grows with cohort size — top-20k crosses Cloudflare Pages'
+  // 25 MiB per-file deploy limit uncompressed. Gzip it on disk; the
+  // loader handles `.json.gz` transparently (same magic-byte sniffing
+  // as batch files).
+  const indexBytes = gzipSync(
+    Buffer.from(JSON.stringify(rows, null, 0), "utf8"),
   );
+  await fs.writeFile(path.join(scanDir, "index.json.gz"), indexBytes);
   await fs.writeFile(
     path.join(scanDir, "aggregates.json"),
     JSON.stringify(aggregates, null, 2),
