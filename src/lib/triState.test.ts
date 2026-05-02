@@ -124,8 +124,8 @@ describe("presentation helpers", () => {
     expect(methodLabel("probe")).toBe("probed");
     expect(methodLabel("not_probed")).toBe("not probed");
     expect(methodLabel("not_applicable")).toBe("not applicable");
-    expect(methodLabel("error")).toBe("probe errored");
-    expect(methodLabel("connection_state")).toBe("observed in handshake");
+    expect(methodLabel("error")).toBe("errored");
+    expect(methodLabel("connection_state")).toBe("observed");
   });
 
   it("statusLabel distinguishes every class", () => {

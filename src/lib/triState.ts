@@ -138,6 +138,10 @@ export function isNotProbed(obs: TriStateInput): boolean {
 /**
  * Human-facing label for each method. Renderers use this to build
  * tooltip text and ARIA labels; never display the raw enum string.
+ *
+ * Labels are short, single-word-ish forms so they read naturally in
+ * a parenthetical (`...rejected (probed)`) rather than the longer
+ * "method: ..." prose this used to emit.
  */
 export function methodLabel(m: Method): string {
   switch (m) {
@@ -148,9 +152,9 @@ export function methodLabel(m: Method): string {
     case "not_applicable":
       return "not applicable";
     case "error":
-      return "probe errored";
+      return "errored";
     case "connection_state":
-      return "observed in handshake";
+      return "observed";
   }
 }
 
@@ -171,22 +175,26 @@ export function reasonText(obs: TriStateInput): string {
       case "explicit_negative":
         return "rejected";
       case "connection_state_affirmative":
-        return "present in handshake";
+        return "present";
       case "connection_state_negative":
-        return "absent from handshake";
+        return "absent";
       case "unknown_not_probed":
         return "not probed";
       case "unknown_not_applicable":
         return "not applicable";
       case "unknown_error":
-        return "probe errored";
+        return "errored";
     }
   })();
-  if (reason) return `${base}: ${reason} (method: ${methodLabel(m)})`;
+  const method = methodLabel(m);
+  // Build the tooltip, but drop the trailing parenthetical when it
+  // would just duplicate the base verdict (e.g. "not probed
+  // (not probed)" → "not probed", "errored (errored)" → "errored").
+  const head = reason ? `${base}: ${reason}` : base;
   // Intentional: value is here to help future callers who want the
   // raw bool in logs without calling extractValue themselves.
   void v;
-  return `${base} (method: ${methodLabel(m)})`;
+  return method === base ? head : `${head} (${method})`;
 }
 
 /**

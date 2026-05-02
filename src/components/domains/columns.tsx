@@ -23,7 +23,19 @@ import type { DomainRow } from "../../data/domainRow";
 import type { ScanList } from "../../data/scanList";
 import { resolveOrganization } from "../../data/metadata";
 import { classify } from "../../lib/triState";
+import type { Breakpoint } from "../../lib/useBreakpoint";
 import { isRespondingHost } from "./filters";
+
+/**
+ * Column meta — `hideBelow` lets the table drop columns automatically
+ * as the viewport narrows. Read by DomainsTable's column filter.
+ */
+declare module "@tanstack/react-table" {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface ColumnMeta<TData, TValue> {
+    hideBelow?: Breakpoint;
+  }
+}
 
 const col = createColumnHelper<DomainRow>();
 
@@ -59,7 +71,7 @@ function stripPort(target: string): string {
 
 const targetColumn = col.accessor("target", {
   header: "Target",
-  size: 240,
+  size: 200,
   cell: (c) => {
     const row = c.row.original;
     const display = stripPort(row.target);
@@ -87,6 +99,7 @@ const targetColumn = col.accessor("target", {
 const orgColumn = col.accessor("organization", {
   header: "Organization",
   size: 200,
+  meta: { hideBelow: "xl" },
   cell: (c) => {
     const v = resolveOrganization(c.row.original);
     return (
@@ -104,6 +117,7 @@ const orgColumn = col.accessor("organization", {
 const rankColumn = col.accessor("top20k_rank", {
   header: "Rank",
   size: 80,
+  meta: { hideBelow: "sm" },
   cell: (c) => {
     const v = c.getValue();
     return v != null ? (
@@ -124,6 +138,7 @@ const rankColumn = col.accessor("top20k_rank", {
 const tlsColumn = col.accessor("tls_version", {
   header: "TLS",
   size: 96,
+  meta: { hideBelow: "sm" },
   cell: (c) => {
     const row = c.row.original;
     if (!isRespondingHost(row)) {
@@ -142,7 +157,10 @@ const tlsColumn = col.accessor("tls_version", {
 
 const kxColumn = col.accessor("kx_group", {
   header: "Key exchange",
-  size: 160,
+  // Always visible (after Target) — KX is the highest-signal column
+  // for PQC analysis, so no `hideBelow`. 180px fits the longest
+  // observed group name ("X25519MLKEM768") plus the inline PQC chip.
+  size: 180,
   cell: (c) => {
     const row = c.row.original;
     if (!isRespondingHost(row)) {
@@ -177,7 +195,8 @@ const kxColumn = col.accessor("kx_group", {
 // pure-PQC sites into the hybrid bucket.
 const pqcColumn = col.accessor("pqc_support", {
   header: "PQC support",
-  size: 152,
+  size: 120,
+  meta: { hideBelow: "md" },
   cell: (c) => {
     const row = c.row.original;
     if (!isRespondingHost(row)) {
@@ -204,6 +223,7 @@ const pqcColumn = col.accessor("pqc_support", {
 const issuerColumn = col.accessor("cert_issuer_cn", {
   header: "Issuer",
   size: 160,
+  meta: { hideBelow: "2xl" },
   cell: (c) => {
     const v = c.getValue();
     return v ? (
@@ -219,6 +239,7 @@ const issuerColumn = col.accessor("cert_issuer_cn", {
 const expiryColumn = col.accessor("cert_expiry", {
   header: "Cert expires",
   size: 130,
+  meta: { hideBelow: "md" },
   cell: (c) => {
     const v = c.getValue();
     if (!v) return <span className="text-ink-3">—</span>;

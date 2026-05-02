@@ -455,13 +455,22 @@ function CipherList({
   return (
     <div>
       <h3 className="text-sm font-semibold">{title}</h3>
-      <table className="mt-1 min-w-full text-sm">
-        <thead className="text-left text-slate-500">
+      {/* IANA + Source columns auto-hide on narrow viewports via
+          Tailwind responsive utilities. Class + Observation are
+          load-bearing so they stay visible across all sizes. */}
+      <table className="mt-1 w-full text-sm">
+        <thead className="text-left text-ink-3">
           <tr>
             <th className="py-1 pr-4 font-medium">Suite</th>
-            <th className="py-1 pr-4 font-medium">IANA</th>
-            <th className="py-1 pr-4 font-medium">Class</th>
-            <th className="py-1 pr-4 font-medium">Source</th>
+            <th className="hidden py-1 pr-4 font-medium md:table-cell">
+              IANA
+            </th>
+            <th className="hidden py-1 pr-4 font-medium md:table-cell">
+              Class
+            </th>
+            <th className="hidden py-1 pr-4 font-medium lg:table-cell">
+              Source
+            </th>
             <th className="py-1 font-medium">Observation</th>
           </tr>
         </thead>
@@ -469,25 +478,25 @@ function CipherList({
           {entries.map((entry, index) => (
             <tr
               key={`${entry.iana_code}-${entry.provider ?? "aws_lc_rs"}-${index}`}
-              className="border-t border-slate-100 dark:border-slate-800"
+              className="border-t border-line-2"
             >
               <td className="py-1 pr-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <code className="text-xs">{entry.name}</code>
                   {entry.openssl_name && (
-                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                    <span className="text-xs text-ink-3">
                       ({entry.openssl_name})
                     </span>
                   )}
                 </div>
               </td>
-              <td className="py-1 pr-4">
+              <td className="hidden py-1 pr-4 md:table-cell">
                 <code className="text-xs">{entry.iana_code}</code>
               </td>
-              <td className="py-1 pr-4">
+              <td className="hidden py-1 pr-4 md:table-cell">
                 <ClassificationPill family={entry.classification} />
               </td>
-              <td className="py-1 pr-4">
+              <td className="hidden py-1 pr-4 lg:table-cell">
                 <ProviderPill provider={entry.provider} />
               </td>
               <td className="py-1">

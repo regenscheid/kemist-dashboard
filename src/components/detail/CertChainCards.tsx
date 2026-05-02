@@ -58,12 +58,28 @@ export function CertChainCards({ certificates }: Props) {
             cert={cert}
             position={idx}
             isLeaf={idx === 0}
-            isRoot={idx === all.length - 1 && all.length > 1}
+            // A cert is the root iff it's self-signed (subject == issuer).
+            // Servers usually omit the actual root from the chain they
+            // send during the handshake — the client supplies it from
+            // a trust store — so the last delivered cert is normally
+            // an intermediate, not a root. Only label it ROOT when the
+            // cert really self-signs.
+            isRoot={idx > 0 && isSelfSigned(cert)}
           />
         ))}
       </div>
     </DetailSection>
   );
+}
+
+/** True iff the cert's subject and issuer match — i.e. it self-signs.
+ *  This is how we recognize a root CA in the wire-order chain (it's
+ *  rare for servers to actually deliver the root, but we still
+ *  detect it correctly when they do). */
+function isSelfSigned(cert: CertificateFacts): boolean {
+  const subject = cert.subject_dn;
+  const issuer = cert.issuer_dn;
+  return !!subject && !!issuer && subject === issuer;
 }
 
 function CertCard({

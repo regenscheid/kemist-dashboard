@@ -182,9 +182,9 @@ function DomainsRoute() {
   return (
     <section
       aria-labelledby="domains-heading"
-      className="grid grid-cols-1 gap-6 md:grid-cols-[14rem_1fr]"
+      className="grid grid-cols-1 gap-6 lg:grid-cols-[14rem_1fr]"
     >
-      <div className="md:order-first">
+      <div className="lg:order-first">
         <FiltersPanel
           filters={filters}
           onChange={setFilters}

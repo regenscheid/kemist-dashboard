@@ -8,6 +8,7 @@
 import type { KemistScanResultSchemaV2 } from "../../data/schema";
 import { TriState } from "../TriState";
 import { methodLabel } from "../../lib/triState";
+import { isAtLeast, useBreakpoint } from "../../lib/useBreakpoint";
 import { DetailSection } from "./DetailSection";
 import { partitionRows, type ObsRow } from "./obsTableHelpers";
 
@@ -50,6 +51,11 @@ const TRUST_STORE_LABELS: Array<{
 ];
 
 export function ValidationSection({ validation, hideUnknown = false }: Props) {
+  const bp = useBreakpoint();
+  const showMethod = isAtLeast(bp, "md");
+  const showReason = isAtLeast(bp, "sm");
+  const visibleCols = 2 + (showMethod ? 1 : 0) + (showReason ? 1 : 0);
+
   const rows: ObsRow[] = TRUST_STORE_LABELS.map(({ field, label, errorKey }) => {
     const obs = validation[field] as ObsRow["observation"];
     const errReason =
@@ -75,17 +81,17 @@ export function ValidationSection({ validation, hideUnknown = false }: Props) {
         style={{ tableLayout: "fixed" }}
       >
         <colgroup>
-          <col style={{ width: "30%" }} />
-          <col style={{ width: "22%" }} />
-          <col style={{ width: "18%" }} />
-          <col style={{ width: "30%" }} />
+          <col style={{ width: trustStoreWidth(visibleCols) }} />
+          <col style={{ width: resultWidth(visibleCols) }} />
+          {showMethod && <col style={{ width: "18%" }} />}
+          {showReason && <col style={{ width: "30%" }} />}
         </colgroup>
         <thead>
           <tr>
             <Th>Trust store</Th>
             <Th>Result</Th>
-            <Th>Method</Th>
-            <Th>Reason</Th>
+            {showMethod && <Th>Method</Th>}
+            {showReason && <Th>Reason</Th>}
           </tr>
         </thead>
         <tbody>
@@ -94,17 +100,26 @@ export function ValidationSection({ validation, hideUnknown = false }: Props) {
               <Td>{row.label}</Td>
               <Td>
                 <TriState observation={row.observation} compact />
+                {!showMethod && (
+                  <span className="ml-1.5 font-mono text-[10px] text-ink-3">
+                    ({methodLabel(row.observation.method)})
+                  </span>
+                )}
               </Td>
-              <Td>
-                <span className="font-mono text-[11px] text-ink-2">
-                  {methodLabel(row.observation.method)}
-                </span>
-              </Td>
-              <Td>
-                <span className="font-mono text-[11px] text-ink-2">
-                  {row.detail ?? "—"}
-                </span>
-              </Td>
+              {showMethod && (
+                <Td>
+                  <span className="font-mono text-[11px] text-ink-2">
+                    {methodLabel(row.observation.method)}
+                  </span>
+                </Td>
+              )}
+              {showReason && (
+                <Td>
+                  <span className="font-mono text-[11px] text-ink-2">
+                    {row.detail ?? "—"}
+                  </span>
+                </Td>
+              )}
             </tr>
           ))}
         </tbody>
@@ -163,4 +178,15 @@ function Td({ children }: { children: React.ReactNode }) {
       {children}
     </td>
   );
+}
+
+/** Trust-store column gets more breathing room as Method/Reason drop out. */
+function trustStoreWidth(visibleCols: number): string {
+  const map: Record<number, string> = { 2: "55%", 3: "44%", 4: "30%" };
+  return map[visibleCols] ?? "30%";
+}
+
+function resultWidth(visibleCols: number): string {
+  const map: Record<number, string> = { 2: "45%", 3: "26%", 4: "22%" };
+  return map[visibleCols] ?? "22%";
 }

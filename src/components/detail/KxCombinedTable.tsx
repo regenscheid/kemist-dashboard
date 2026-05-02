@@ -26,6 +26,7 @@ import {
   methodLabel,
   triPillClass,
 } from "../../lib/triState";
+import { isAtLeast, useBreakpoint } from "../../lib/useBreakpoint";
 import { DetailSection } from "./DetailSection";
 
 type Props = {
@@ -42,6 +43,13 @@ const FAMILY_TONE: Record<KxSupportType, string> = {
 };
 
 export function KxCombinedTable({ groups, hideUnknown = false }: Props) {
+  const bp = useBreakpoint();
+  const showFamily = isAtLeast(bp, "sm");
+  const showProvider = isAtLeast(bp, "md");
+  const showReason = isAtLeast(bp, "lg");
+  const visibleColCount =
+    2 + (showFamily ? 1 : 0) + (showProvider ? 1 : 0) + (showReason ? 1 : 0);
+
   const tls13Rows = sortEntries(groups.tls1_3);
   const tls12Rows = sortEntries(groups.tls1_2);
 
@@ -70,19 +78,21 @@ export function KxCombinedTable({ groups, hideUnknown = false }: Props) {
         style={{ tableLayout: "fixed" }}
       >
         <colgroup>
-          <col style={{ width: "26%" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "20%" }} />
-          <col style={{ width: "22%" }} />
+          {/* Re-allocate column widths so the visible columns split
+              the row evenly when narrow columns are hidden. */}
+          <col style={{ width: groupColWidth(visibleColCount) }} />
+          {showFamily && <col style={{ width: "16%" }} />}
+          {showProvider && <col style={{ width: "16%" }} />}
+          <col style={{ width: observationColWidth(visibleColCount) }} />
+          {showReason && <col style={{ width: "22%" }} />}
         </colgroup>
         <thead>
           <tr>
             <Th>Group</Th>
-            <Th>Family</Th>
-            <Th>Provider</Th>
+            {showFamily && <Th>Family</Th>}
+            {showProvider && <Th>Provider</Th>}
             <Th>Observation</Th>
-            <Th>Reason</Th>
+            {showReason && <Th>Reason</Th>}
           </tr>
         </thead>
         <tbody>
@@ -90,24 +100,46 @@ export function KxCombinedTable({ groups, hideUnknown = false }: Props) {
             label="TLS 1.3"
             probed={tls13Probed}
             visible={tls13Visible.length}
+            colSpan={visibleColCount}
           />
           {tls13Visible.map(([name, obs]) => (
-            <GroupRow key={`tls13-${name}`} name={name} obs={obs} />
+            <GroupRow
+              key={`tls13-${name}`}
+              name={name}
+              obs={obs}
+              showFamily={showFamily}
+              showProvider={showProvider}
+              showReason={showReason}
+            />
           ))}
           {tls13Visible.length === 0 && tls13Probed > 0 && (
-            <EmptyRow message="All TLS 1.3 entries hidden by 'Hide unknown'." />
+            <EmptyRow
+              message="All TLS 1.3 entries hidden by 'Hide unknown'."
+              colSpan={visibleColCount}
+            />
           )}
 
           <SubHeaderRow
             label="TLS 1.2"
             probed={tls12Probed}
             visible={tls12Visible.length}
+            colSpan={visibleColCount}
           />
           {tls12Visible.map(([name, obs]) => (
-            <GroupRow key={`tls12-${name}`} name={name} obs={obs} />
+            <GroupRow
+              key={`tls12-${name}`}
+              name={name}
+              obs={obs}
+              showFamily={showFamily}
+              showProvider={showProvider}
+              showReason={showReason}
+            />
           ))}
           {tls12Visible.length === 0 && tls12Probed > 0 && (
-            <EmptyRow message="All TLS 1.2 entries hidden by 'Hide unknown'." />
+            <EmptyRow
+              message="All TLS 1.2 entries hidden by 'Hide unknown'."
+              colSpan={visibleColCount}
+            />
           )}
         </tbody>
       </table>
@@ -118,9 +150,15 @@ export function KxCombinedTable({ groups, hideUnknown = false }: Props) {
 function GroupRow({
   name,
   obs,
+  showFamily,
+  showProvider,
+  showReason,
 }: {
   name: string;
   obs: GroupObservation;
+  showFamily: boolean;
+  showProvider: boolean;
+  showReason: boolean;
 }) {
   const family = classifyKxGroupName(name);
   const cls = triPillClass(obs);
@@ -130,35 +168,55 @@ function GroupRow({
   return (
     <tr className={tint}>
       <Td>
-        <span className="font-mono text-[12px]">{name}</span>
+        <div className="flex flex-col gap-0.5">
+          <span className="font-mono text-[12px]">{name}</span>
+          {/* When Family is hidden as a column, surface the family
+              tag inline beneath the group name so the reader still
+              sees the hybrid/PQC distinction. */}
+          {!showFamily && family && (
+            <span
+              className={`inline-block w-fit rounded-sm px-1 font-mono text-[9px] font-semibold uppercase tracking-[0.05em] ${FAMILY_TONE[family]}`}
+            >
+              {KX_SUPPORT_LABELS[family]}
+            </span>
+          )}
+        </div>
       </Td>
-      <Td>
-        {family ? (
-          <span
-            className={`inline-block rounded-sm px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.05em] ${FAMILY_TONE[family]}`}
-          >
-            {KX_SUPPORT_LABELS[family]}
+      {showFamily && (
+        <Td>
+          {family ? (
+            <span
+              className={`inline-block rounded-sm px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.05em] ${FAMILY_TONE[family]}`}
+            >
+              {KX_SUPPORT_LABELS[family]}
+            </span>
+          ) : (
+            <span className="text-ink-3">—</span>
+          )}
+        </Td>
+      )}
+      {showProvider && (
+        <Td>
+          <span className="font-mono text-[11px] text-ink-2">
+            {obs.provider ?? "—"}
           </span>
-        ) : (
-          <span className="text-ink-3">—</span>
-        )}
-      </Td>
+        </Td>
+      )}
       <Td>
-        <span className="font-mono text-[11px] text-ink-2">
-          {obs.provider ?? "—"}
-        </span>
+        <div className="flex flex-wrap items-center gap-1">
+          <TriState observation={obs} compact />
+          <span className="font-mono text-[10px] text-ink-3">
+            ({methodLabel(obs.method)})
+          </span>
+        </div>
       </Td>
-      <Td>
-        <TriState observation={obs} compact />
-        <span className="ml-2 font-mono text-[10px] text-ink-3">
-          ({methodLabel(obs.method)})
-        </span>
-      </Td>
-      <Td>
-        <span className="font-mono text-[11px] text-ink-2">
-          {obs.reason ?? "—"}
-        </span>
-      </Td>
+      {showReason && (
+        <Td>
+          <span className="font-mono text-[11px] text-ink-2">
+            {obs.reason ?? "—"}
+          </span>
+        </Td>
+      )}
     </tr>
   );
 }
@@ -167,15 +225,17 @@ function SubHeaderRow({
   label,
   probed,
   visible,
+  colSpan,
 }: {
   label: string;
   probed: number;
   visible: number;
+  colSpan: number;
 }) {
   return (
     <tr>
       <td
-        colSpan={5}
+        colSpan={colSpan}
         className="border-b border-line bg-surface-2 px-3 py-2"
       >
         <div className="flex items-center justify-between">
@@ -193,11 +253,17 @@ function SubHeaderRow({
   );
 }
 
-function EmptyRow({ message }: { message: string }) {
+function EmptyRow({
+  message,
+  colSpan,
+}: {
+  message: string;
+  colSpan: number;
+}) {
   return (
     <tr>
       <td
-        colSpan={5}
+        colSpan={colSpan}
         className="border-b border-line-2 px-3 py-2 text-[12px] italic text-ink-3"
       >
         {message}
@@ -223,6 +289,32 @@ function Td({ children }: { children: React.ReactNode }) {
       {children}
     </td>
   );
+}
+
+/**
+ * Reflow column widths so visible columns share row space evenly when
+ * narrow ones drop. Group + Observation are always visible; the
+ * remaining percentage is split between them as more columns hide.
+ */
+function groupColWidth(visibleColCount: number): string {
+  // 5 cols visible: 26%; 4: 32%; 3: 40%; 2: 50%
+  const map: Record<number, string> = {
+    2: "50%",
+    3: "40%",
+    4: "32%",
+    5: "26%",
+  };
+  return map[visibleColCount] ?? "26%";
+}
+
+function observationColWidth(visibleColCount: number): string {
+  const map: Record<number, string> = {
+    2: "50%",
+    3: "44%",
+    4: "36%",
+    5: "20%",
+  };
+  return map[visibleColCount] ?? "20%";
 }
 
 function sortEntries(

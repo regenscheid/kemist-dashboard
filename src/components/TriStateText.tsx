@@ -33,13 +33,19 @@ export function TriStateText({ observation, showMethod = true }: Props) {
   const method: Method = observation.method;
   const reason = observation.reason;
   return (
-    <span className={toneTextClasses[clazz]}>
+    // overflow-wrap: anywhere lets long unbroken reason tokens (e.g.
+    // "inappropriate_fallback_alert_at_change_cipher_spec") wrap at
+    // any character when the cell is narrower than the string —
+    // otherwise the value overflows the card on phones.
+    <span
+      className={`[overflow-wrap:anywhere] ${toneTextClasses[clazz]}`}
+    >
       <span className="font-medium">{status}</span>
       {showMethod && (
         <>
           {" "}
           <span className="text-slate-500 dark:text-slate-400">
-            (method: {methodLabel(method)}
+            ({methodLabel(method)}
             {reason ? `; ${reason}` : ""})
           </span>
         </>

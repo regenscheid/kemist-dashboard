@@ -52,9 +52,11 @@ export function DetailSection({
           {json !== undefined && <CopyJsonButton json={json} />}
         </div>
       </header>
-      {description && (
-        <p className="mt-1 text-[13px] text-ink-2">{description}</p>
-      )}
+      {/* `description` is accepted for back-compat with existing call
+          sites but no longer rendered — section subtitles cluttered
+          the detail view without adding signal. Remove the prop from
+          callers in a follow-up. */}
+      {void description}
       <div className="mt-4">{children}</div>
     </section>
   );

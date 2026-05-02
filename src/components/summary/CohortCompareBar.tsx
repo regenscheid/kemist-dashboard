@@ -28,13 +28,17 @@ export function CohortCompareBar({ rows }: Props) {
         return (
           <div
             key={scanList}
-            className="grid grid-cols-[200px_1fr_200px] items-center gap-4"
+            // Stack vertically on phones (label, bar, numbers); switch
+            // to a three-column grid at md so the wider bar gets
+            // breathing room. Below md the side columns squeeze the
+            // 1fr middle to ~0px and the bar collapses.
+            className="grid grid-cols-1 items-center gap-2 md:grid-cols-[180px_1fr_180px] md:gap-4"
           >
             <div className="text-[13px]">
               {SCAN_LIST_LABELS[scanList].display}
             </div>
             <ThreeBucketBar bucket={bucket} height={14} />
-            <div className="flex items-baseline justify-end gap-3 font-mono text-[12px]">
+            <div className="flex items-baseline justify-start gap-3 font-mono text-[12px] md:justify-end">
               <span className="font-semibold">{pct.toFixed(1)}%</span>
               <span className="text-ink-3">
                 {bucket.affirmative.toLocaleString()} /{" "}

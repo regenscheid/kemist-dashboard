@@ -27,6 +27,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import type { DomainRow } from "../../data/domainRow";
 import type { ScanList } from "../../data/scanList";
 import { DEFAULT_SCAN_LIST } from "../../data/scanList";
+import { isAtLeast, useBreakpoint } from "../../lib/useBreakpoint";
 import { buildDomainColumns } from "./columns";
 import { isRespondingHost } from "./filters";
 
@@ -50,7 +51,18 @@ export function DomainsTable({
   onSortingChange,
   scanList = DEFAULT_SCAN_LIST,
 }: Props) {
-  const columns = useMemo(() => buildDomainColumns(scanList), [scanList]);
+  const breakpoint = useBreakpoint();
+  // Filter out columns whose `hideBelow` meta exceeds the current
+  // breakpoint, so narrow viewports drop low-priority columns
+  // automatically rather than forcing a horizontal scroll.
+  const columns = useMemo(
+    () =>
+      buildDomainColumns(scanList).filter((c) => {
+        const hideBelow = c.meta?.hideBelow;
+        return !hideBelow || isAtLeast(breakpoint, hideBelow);
+      }),
+    [scanList, breakpoint],
+  );
 
   const table = useReactTable({
     data: rows,
@@ -80,6 +92,17 @@ export function DomainsTable({
     [columns],
   );
   const totalWidth = colWidths.reduce((sum, w) => sum + w, 0);
+  // Convert each column's pixel size into a percentage of the row.
+  // Using percentages on both <col> and the virtualized <tr> cells
+  // means thead (sized by colgroup) and body rows (sized by their
+  // own display:table) split available width identically — without
+  // this, when the container is wider than `totalWidth` the table
+  // stretches via `minWidth: 100%` and headers drift relative to
+  // the virtualized cells, which keep their pixel widths.
+  const colPercents = useMemo(
+    () => colWidths.map((w) => (w / totalWidth) * 100),
+    [colWidths, totalWidth],
+  );
 
   return (
     <div
@@ -88,16 +111,15 @@ export function DomainsTable({
     >
       <table
         role="table"
-        className="border-separate border-spacing-0 text-[12px]"
+        className="w-full border-separate border-spacing-0 text-[12px]"
         style={{
           tableLayout: "fixed",
-          width: `${totalWidth}px`,
-          minWidth: "100%",
+          minWidth: `${totalWidth}px`,
         }}
       >
         <colgroup>
-          {colWidths.map((w, i) => (
-            <col key={i} style={{ width: `${w}px` }} />
+          {colPercents.map((p, i) => (
+            <col key={i} style={{ width: `${p}%` }} />
           ))}
         </colgroup>
         <thead className="sticky top-0 z-10 bg-surface-2">
@@ -156,7 +178,7 @@ export function DomainsTable({
                 key={row.id}
                 data-testid="domains-row"
                 className={[
-                  "absolute left-0",
+                  "absolute left-0 right-0",
                   reachable
                     ? "hover:bg-surface-2"
                     : "bg-surface-2 text-ink-3",
@@ -164,7 +186,8 @@ export function DomainsTable({
                 style={{
                   transform: `translateY(${virtualRow.start}px)`,
                   height: `${ROW_HEIGHT}px`,
-                  width: `${totalWidth}px`,
+                  width: "100%",
+                  minWidth: `${totalWidth}px`,
                   display: "table",
                   tableLayout: "fixed",
                 }}
@@ -173,7 +196,7 @@ export function DomainsTable({
                   <td
                     key={cell.id}
                     className="overflow-hidden border-b border-line-2 px-3 py-1 align-middle"
-                    style={{ width: `${colWidths[cellIdx]}px` }}
+                    style={{ width: `${colPercents[cellIdx]}%` }}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>

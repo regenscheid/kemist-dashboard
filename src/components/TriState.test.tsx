@@ -18,7 +18,7 @@ describe("<TriState> pill (three-class TriPill)", () => {
     const pill = screen.getByRole("status");
     expect(pill).toHaveTextContent("supported");
     expect(pill).toHaveTextContent("+");
-    expect(pill).toHaveAccessibleName(/supported.*method: probed/i);
+    expect(pill).toHaveAccessibleName(/supported.*\(probed\)/i);
   });
 
   it("renders 'rejected' with a `−` glyph for explicit negatives", () => {
@@ -68,8 +68,8 @@ describe("<TriState> pill (three-class TriPill)", () => {
     render(<TriState observation={take("observation_bool_error")} />);
     const pill = screen.getByRole("status");
     // Visible label is the generic "unknown" but the tooltip carries
-    // "probe errored" — the finer taxonomy is not lost.
-    expect(pill).toHaveAccessibleName(/probe errored/);
+    // "errored" — the finer taxonomy is not lost.
+    expect(pill).toHaveAccessibleName(/errored/);
     expect(pill).toHaveAccessibleName(
       /unexpected_alert_during_probe: internal_error/,
     );
@@ -91,7 +91,7 @@ describe("<TriStateText> inline", () => {
   it("defaults to showing method in parentheses", () => {
     render(<TriStateText observation={take("observation_bool_affirmative")} />);
     expect(screen.getByText(/Supported/)).toBeInTheDocument();
-    expect(screen.getByText(/method: probed/)).toBeInTheDocument();
+    expect(screen.getByText(/\(probed\)/)).toBeInTheDocument();
   });
 
   it("omits the method parenthetical when showMethod=false", () => {
@@ -102,14 +102,15 @@ describe("<TriStateText> inline", () => {
       />,
     );
     expect(screen.getByText(/Supported/)).toBeInTheDocument();
-    expect(screen.queryByText(/method:/)).not.toBeInTheDocument();
+    // No parenthetical method label when showMethod is suppressed.
+    expect(screen.queryByText(/\(probed\)/)).not.toBeInTheDocument();
   });
 
   it("inlines the reason when one is present", () => {
     render(<TriStateText observation={take("observation_bool_error")} />);
     expect(
       screen.getByText(
-        /method: probe errored; unexpected_alert_during_probe: internal_error/,
+        /errored; unexpected_alert_during_probe: internal_error/,
       ),
     ).toBeInTheDocument();
   });

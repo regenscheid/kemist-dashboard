@@ -57,6 +57,17 @@ export function classifyKxGroupName(
   if ((ECC_GROUPS as readonly string[]).includes(name)) {
     return "ecc";
   }
+  // Brainpool curves are ECC (RFC 7027 / RFC 8734). The TLS 1.3
+  // variants append "tls13" to disambiguate the curve generation.
+  if (/^brainpoolP\d+r1(tls13)?$/i.test(name)) {
+    return "ecc";
+  }
+  // Catch other secp / sect named curves the scanner might emit
+  // (secp256k1, sect571r1, etc.). Covers the historical TLS supported
+  // groups registry without enumerating every codepoint.
+  if (/^sec[pt]\d+[kr][12]$/i.test(name)) {
+    return "ecc";
+  }
   if (/^ffdhe\d+$/i.test(name)) {
     return "ffdh";
   }

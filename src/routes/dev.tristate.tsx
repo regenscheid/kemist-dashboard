@@ -41,7 +41,7 @@ const cases: Array<{ key: string; title: string }> = [
     key: "observation_bool_not_applicable",
     title: "Unknown: not applicable",
   },
-  { key: "observation_bool_error", title: "Unknown: probe errored" },
+  { key: "observation_bool_error", title: "Unknown: errored" },
   { key: "version_offered_affirmative", title: "Shape: versionOffered" },
   { key: "group_observation_not_probed", title: "Shape: groupObservation" },
   {

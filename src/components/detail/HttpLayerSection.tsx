@@ -13,6 +13,25 @@ type Props = {
   http: KemistScanResultSchemaV2["http"];
 };
 
+/**
+ * Drop schema fields whose values are local-build provenance — paths
+ * to cache files, source-of-truth identifiers, etc. They're useful
+ * for debugging the scanner build, but they aren't load-bearing for a
+ * posture reader and tend to be long unbreakable strings that
+ * overflow narrow cards.
+ */
+function isDebugKey(key: string): boolean {
+  const lower = key.toLowerCase();
+  return (
+    lower.includes("source") ||
+    lower.includes("path") ||
+    lower.includes("cache") ||
+    lower.endsWith("_at") || // build_at, fetched_at, etc.
+    lower.includes("sha256") ||
+    lower.includes("upstream_version")
+  );
+}
+
 export function HttpLayerSection({ http }: Props) {
   if (!http || !http.enabled) {
     return (
@@ -55,17 +74,22 @@ export function HttpLayerSection({ http }: Props) {
           }
         />
         {hstsKv &&
-          Object.entries(hstsKv).map(([k, v]) => (
-            <Field
-              key={k}
-              label={k.replace(/_/g, " ")}
-              value={
-                <span className="font-mono text-[12px]">
-                  {String(v)}
-                </span>
-              }
-            />
-          ))}
+          Object.entries(hstsKv)
+            // Hide debug/provenance fields whose values are local
+            // file paths or build identifiers — they aren't useful to
+            // a posture reader and overflow on narrow viewports.
+            .filter(([k]) => !isDebugKey(k))
+            .map(([k, v]) => (
+              <Field
+                key={k}
+                label={k.replace(/_/g, " ")}
+                value={
+                  <span className="break-all font-mono text-[12px]">
+                    {String(v)}
+                  </span>
+                }
+              />
+            ))}
         <Field
           label="Preload list status"
           value={
@@ -74,16 +98,6 @@ export function HttpLayerSection({ http }: Props) {
             </span>
           }
         />
-        {http.preload_list_source && (
-          <Field
-            label="Preload source"
-            value={
-              <span className="font-mono text-[12px] text-ink-3">
-                {http.preload_list_source}
-              </span>
-            }
-          />
-        )}
       </FieldGrid>
 
       {headerEntries.length > 0 && (
