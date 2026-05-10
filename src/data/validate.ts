@@ -69,6 +69,19 @@ export type ValidationResult = {
   softWarnings: string[];
 };
 
+type OutputSchema = Record<string, unknown>;
+type SchemaVersionProperty = {
+  const?: unknown;
+  type?: string;
+  pattern?: string;
+};
+type SchemaWithVersion = OutputSchema & {
+  $id?: unknown;
+  properties?: {
+    schema_version?: SchemaVersionProperty;
+  };
+};
+
 const SUPPORTED_SCHEMA_MAJOR = "2";
 
 /**
@@ -78,8 +91,8 @@ const SUPPORTED_SCHEMA_MAJOR = "2";
  * browser-safe.
  */
 export function buildRecordValidator(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  outputSchema: Record<string, any>,
+  outputSchema: OutputSchema,
+  legacyOutputSchemas: OutputSchema[] = [],
 ): ValidateFunction<KemistScanResultSchemaV2> {
   const ajv = new Ajv2020({
     // strict:false because the schema uses draft-2020 features that
@@ -89,7 +102,65 @@ export function buildRecordValidator(
     allErrors: true,
   });
   addFormats(ajv);
-  return ajv.compile<KemistScanResultSchemaV2>(outputSchema);
+  const validators = [outputSchema, ...legacyOutputSchemas].map((schema) => ({
+    versionPrefix: schemaVersionPrefix(schema),
+    validate: ajv.compile<KemistScanResultSchemaV2>(relaxSchemaVersionConst(schema)),
+  }));
+
+  const validate = ((record: unknown) => {
+    const recordVersion = readSchemaVersion(record);
+    const matchingValidators = validators.filter(
+      (validator) =>
+        validator.versionPrefix !== undefined &&
+        recordVersion?.startsWith(validator.versionPrefix),
+    );
+    const candidates = matchingValidators.length > 0
+      ? matchingValidators
+      : validators.slice(0, 1);
+
+    for (const validator of candidates) {
+      if (validator.validate(record)) {
+        validate.errors = null;
+        return true;
+      }
+    }
+    validate.errors = candidates[0]?.validate.errors ?? null;
+    return false;
+  }) as ValidateFunction<KemistScanResultSchemaV2>;
+
+  return validate;
+}
+
+function readSchemaVersion(record: unknown): string | undefined {
+  if (!record || typeof record !== "object") return undefined;
+  const maybeRecord = record as { schema_version?: unknown };
+  return typeof maybeRecord.schema_version === "string"
+    ? maybeRecord.schema_version
+    : undefined;
+}
+
+function schemaVersionPrefix(
+  outputSchema: OutputSchema,
+): string | undefined {
+  const version = (outputSchema as SchemaWithVersion).properties?.schema_version
+    ?.const;
+  if (typeof version !== "string") return undefined;
+  const match = /^(\d+\.\d+)\./.exec(version);
+  return match ? `${match[1]}.` : undefined;
+}
+
+function relaxSchemaVersionConst(
+  outputSchema: OutputSchema,
+): OutputSchema {
+  const clone = structuredClone(outputSchema) as SchemaWithVersion;
+  delete clone.$id;
+  const schemaVersion = clone.properties?.schema_version;
+  if (schemaVersion && typeof schemaVersion === "object") {
+    delete schemaVersion.const;
+    schemaVersion.type = "string";
+    schemaVersion.pattern = "^2\\.";
+  }
+  return clone;
 }
 
 /**

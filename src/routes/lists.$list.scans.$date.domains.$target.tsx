@@ -7,15 +7,16 @@
  *   3. Page-level "Hide unknown / not probed" toggle (default ON)
  *   4. In-page nav — anchor links to the section ids below
  *   5. Negotiation
- *   6. KX combined table (TLS 1.3 + TLS 1.2 in one aligned table)
- *   7. Cipher suites
+ *   6. Cipher suites
+ *   7. KX combined table (TLS 1.3 + TLS 1.2 in one aligned table)
  *   8. Behavioral probes
  *   9. Extensions
  *  10. Downgrade signaling
  *  11. Session resumption
  *  12. HTTP layer
- *  13. Validation (multi-trust-store + name-match row)
- *  14. Cert chain
+ *  13. SNI behavior
+ *  14. Validation (multi-trust-store + name-match row)
+ *  15. Cert chain
  */
 
 import { createFileRoute } from "@tanstack/react-router";
@@ -31,7 +32,9 @@ import {
   DowngradeSignalingSection,
   ExtensionsSection,
   NegotiatedSection,
+  RenegotiationBehaviorSection,
   SessionResumptionSection,
+  SniBehaviorSection,
 } from "../components/detail/sections";
 import { DetailHeader } from "../components/detail/DetailHeader";
 import { VersionsStrip } from "../components/detail/VersionsStrip";
@@ -49,13 +52,15 @@ export const Route = createFileRoute(
 
 const NAV_ITEMS: Array<{ id: string; label: string }> = [
   { id: "negotiation", label: "Negotiation" },
-  { id: "kx", label: "KX groups" },
   { id: "cipher-suites", label: "Cipher suites" },
-  { id: "behavioral-probes", label: "Behavioral probes" },
+  { id: "kx", label: "KX groups" },
+  { id: "behavioral-probes", label: "Behavior" },
+  { id: "renegotiation", label: "Renegotiation" },
   { id: "extensions", label: "Extensions" },
   { id: "downgrade", label: "Downgrade" },
   { id: "session-resumption", label: "Resumption" },
-  { id: "http", label: "HTTP layer" },
+  { id: "http", label: "HTTP" },
+  { id: "sni", label: "SNI" },
   { id: "validation", label: "Validation" },
   { id: "chain", label: "Cert chain" },
 ];
@@ -76,8 +81,7 @@ function DetailRoute() {
   // the design's acceptance checklist. Threaded into every section
   // that consumes a tri-state row set.
   const [hideUnknown, setHideUnknown] = useState(true);
-  const [hideUnsupportedLegacyCiphers, setHideUnsupportedLegacyCiphers] =
-    useState(true);
+  const [hideUnsupported, setHideUnsupported] = useState(true);
 
   useEffect(() => {
     if (!scanList) return;
@@ -158,27 +162,33 @@ function DetailRoute() {
       <PageLevelToggle
         hideUnknown={hideUnknown}
         onChangeHideUnknown={setHideUnknown}
-        hideUnsupportedLegacyCiphers={hideUnsupportedLegacyCiphers}
-        onChangeHideUnsupportedLegacyCiphers={setHideUnsupportedLegacyCiphers}
+        hideUnsupported={hideUnsupported}
+        onChangeHideUnsupported={setHideUnsupported}
       />
 
       <InPageNav />
 
       <NegotiatedSection negotiated={record.tls.negotiated} />
 
-      <KxCombinedTable
-        groups={record.tls.groups}
-        hideUnknown={hideUnknown}
-      />
-
       <CipherSuitesSection
         ciphers={record.tls.cipher_suites}
         hideNotProbed={hideUnknown}
-        hideUnsupportedLegacy={hideUnsupportedLegacyCiphers}
+        hideUnsupported={hideUnsupported}
+      />
+
+      <KxCombinedTable
+        groups={record.tls.groups}
+        hideUnknown={hideUnknown}
+        hideUnsupported={hideUnsupported}
       />
 
       <BehavioralProbesSection
         probes={record.tls.behavioral_probes}
+        hideNotProbed={hideUnknown}
+      />
+
+      <RenegotiationBehaviorSection
+        renegotiation={record.tls.renegotiation_behavior}
         hideNotProbed={hideUnknown}
       />
 
@@ -199,6 +209,11 @@ function DetailRoute() {
 
       <HttpLayerSection http={record.http} />
 
+      <SniBehaviorSection
+        sniBehavior={record.tls.sni_behavior}
+        hideNotProbed={hideUnknown}
+      />
+
       <ValidationSection
         validation={record.validation}
         hideUnknown={hideUnknown}
@@ -212,13 +227,13 @@ function DetailRoute() {
 function PageLevelToggle({
   hideUnknown,
   onChangeHideUnknown,
-  hideUnsupportedLegacyCiphers,
-  onChangeHideUnsupportedLegacyCiphers,
+  hideUnsupported,
+  onChangeHideUnsupported,
 }: {
   hideUnknown: boolean;
   onChangeHideUnknown: (next: boolean) => void;
-  hideUnsupportedLegacyCiphers: boolean;
-  onChangeHideUnsupportedLegacyCiphers: (next: boolean) => void;
+  hideUnsupported: boolean;
+  onChangeHideUnsupported: (next: boolean) => void;
 }) {
   return (
     <div className="rounded-md border border-line bg-surface px-4 py-3">
@@ -236,12 +251,10 @@ function PageLevelToggle({
           <input
             type="checkbox"
             className="h-4 w-4 accent-accent"
-            checked={hideUnsupportedLegacyCiphers}
-            onChange={(e) =>
-              onChangeHideUnsupportedLegacyCiphers(e.target.checked)
-            }
+            checked={hideUnsupported}
+            onChange={(e) => onChangeHideUnsupported(e.target.checked)}
           />
-          <span>Hide unsupported legacy cipher suites</span>
+          <span>Hide unsupported</span>
         </label>
       </div>
     </div>
@@ -252,11 +265,11 @@ function InPageNav() {
   return (
     <nav
       aria-label="In-page sections"
-      className="rounded-md border border-line bg-surface px-4 py-3"
+      className="rounded-md border border-line bg-surface px-3 py-2"
     >
-      <ul className="flex flex-wrap gap-x-4 gap-y-1.5 font-mono text-[12px]">
+      <ul className="flex flex-wrap gap-x-2.5 gap-y-1 font-mono text-[11px]">
         {NAV_ITEMS.map((item, idx) => (
-          <li key={item.id} className="flex items-center gap-4">
+          <li key={item.id} className="flex items-center gap-2">
             {idx > 0 && (
               <span aria-hidden="true" className="text-ink-3">
                 ·

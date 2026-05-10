@@ -212,10 +212,7 @@ function DomainsRoute() {
             </span>
           </div>
           <p className="max-w-prose text-[13px] text-ink-2">
-            {SCAN_LIST_LABELS[scanList].cadence}.{" "}
-            {scanDate && <>Scan {scanDate}. </>}
-            Click a row to open the per-domain record. Cipher / KX matrices
-            and behavioral probes live there.
+            Click a row to open the per-domain record.
           </p>
         </header>
         {renderStatusBanner(status)}

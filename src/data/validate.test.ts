@@ -17,6 +17,12 @@ const schema = JSON.parse(
     "utf8",
   ),
 ) as Record<string, unknown>;
+const legacySchema = JSON.parse(
+  readFileSync(
+    path.join(__dirname, "../../schemas/output-v2.0.json"),
+    "utf8",
+  ),
+) as Record<string, unknown>;
 const nistRecord: KemistScanResultSchemaV2 = JSON.parse(
   readFileSync(path.join(__dirname, "../../fixtures/nist-gov.jsonl"), "utf8"),
 ) as KemistScanResultSchemaV2;
@@ -41,13 +47,42 @@ function clone(record: KemistScanResultSchemaV2): KemistScanResultSchemaV2 {
 }
 
 describe("buildRecordValidator", () => {
-  it("accepts the real nist.gov record", () => {
-    const validate = buildRecordValidator(schema);
+  it("accepts the real legacy v2.0 nist.gov record", () => {
+    const validate = buildRecordValidator(schema, [legacySchema]);
     expect(validate(nistRecord)).toBe(true);
   });
 
-  it("rejects records with schema_version !== 2.0.0 (Ajv const check)", () => {
-    const validate = buildRecordValidator(schema);
+  it("accepts structurally valid v2.1 records", () => {
+    const validate = buildRecordValidator(schema, [legacySchema]);
+    const current = clone(nistRecord);
+    (current as unknown as { schema_version: string }).schema_version = "2.1.0";
+    current.tls.behavioral_probes = {
+      ...current.tls.behavioral_probes,
+      compression_selected: null,
+      crime_vulnerable: { value: false, method: "probe" },
+      record_compression_by_version: [],
+    };
+    current.tls.extensions.record_size_limit = {
+      value: null,
+      method: "not_probed",
+      reason: "synthetic_v2_1_fixture",
+    };
+    current.tls.renegotiation_behavior.server_initiated_observed = {
+      value: null,
+      method: "not_probed",
+      reason: "synthetic_v2_1_fixture",
+    };
+    delete (
+      current.tls.behavioral_probes as unknown as {
+        compression_offered?: unknown;
+      }
+    ).compression_offered;
+
+    expect(validate(current)).toBe(true);
+  });
+
+  it("rejects records with non-v2 schema_version", () => {
+    const validate = buildRecordValidator(schema, [legacySchema]);
     const bad = clone(nistRecord);
     (bad as unknown as { schema_version: string }).schema_version = "1.0.0";
     expect(validate(bad)).toBe(false);
@@ -55,7 +90,7 @@ describe("buildRecordValidator", () => {
 });
 
 describe("validateScan — HARD FAIL branches", () => {
-  const validate = buildRecordValidator(schema);
+  const validate = buildRecordValidator(schema, [legacySchema]);
 
   it("passes on a consistent single-batch scan", () => {
     const manifest = makeManifest([{ batch_id: "batch-001", count: 1 }]);
@@ -136,7 +171,7 @@ describe("validateScan — HARD FAIL branches", () => {
 });
 
 describe("validateScan — SOFT WARN branches", () => {
-  const validate = buildRecordValidator(schema);
+  const validate = buildRecordValidator(schema, [legacySchema]);
 
   it("warns on mixed scanner versions without aborting", () => {
     const manifest = makeManifest([
@@ -179,7 +214,7 @@ describe("validateScan — SOFT WARN branches", () => {
 });
 
 describe("validateScan — scan_list contract (orchestrator v0.4.0)", () => {
-  const validate = buildRecordValidator(schema);
+  const validate = buildRecordValidator(schema, [legacySchema]);
 
   it("accepts a manifest with the canonical scan_list literal", () => {
     const manifest: ScanManifest = {

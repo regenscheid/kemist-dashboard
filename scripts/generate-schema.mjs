@@ -29,7 +29,7 @@ const banner = `/* eslint-disable */
  * Regenerate with: pnpm schema:generate
  */`;
 
-const ts = await compileFromFile(schemaPath, {
+const generated = await compileFromFile(schemaPath, {
   bannerComment: banner,
   style: {
     singleQuote: false,
@@ -43,6 +43,20 @@ const ts = await compileFromFile(schemaPath, {
   // Field names in the schema are snake_case; preserve them.
   enableConstEnums: false,
 });
+
+const generatedRecordType = generated.match(
+  /export interface (KemistScanResultSchemaV\d+)\s*\{/,
+)?.[1];
+if (!generatedRecordType) {
+  throw new Error("Could not find generated Kemist scan result interface name");
+}
+
+const ts = `${generated}
+/** Stable dashboard-facing alias for the generated v2.x scan record type. */
+export type KemistScanRecord = ${generatedRecordType};
+/** Back-compat alias retained for existing dashboard imports. */
+export type KemistScanResultSchemaV2 = KemistScanRecord;
+`;
 
 await mkdir(path.dirname(outPath), { recursive: true });
 await writeFile(outPath, ts, "utf8");

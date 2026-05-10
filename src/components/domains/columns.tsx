@@ -18,11 +18,9 @@
 
 import { createColumnHelper } from "@tanstack/react-table";
 import { Link } from "@tanstack/react-router";
-import { TriState } from "../TriState";
 import type { DomainRow } from "../../data/domainRow";
 import type { ScanList } from "../../data/scanList";
 import { resolveOrganization } from "../../data/metadata";
-import { classify } from "../../lib/triState";
 import type { Breakpoint } from "../../lib/useBreakpoint";
 import { isRespondingHost } from "./filters";
 
@@ -189,37 +187,6 @@ const kxColumn = col.accessor("kx_group", {
   },
 });
 
-// "PQC support" — any post-quantum kx (hybrid or pure) probed +true.
-// Replaces the v0 PQC-hybrid-only column; users running grep for
-// "did this host speak PQC at all?" don't have to mentally union
-// pure-PQC sites into the hybrid bucket.
-const pqcColumn = col.accessor("pqc_support", {
-  header: "PQC support",
-  size: 120,
-  meta: { hideBelow: "md" },
-  cell: (c) => {
-    const row = c.row.original;
-    if (!isRespondingHost(row)) {
-      return <span className="text-ink-3">—</span>;
-    }
-    return <TriState observation={c.getValue()} />;
-  },
-  sortingFn: (a, b) => {
-    const order = { affirmative: 0, explicit_negative: 1, unknown: 2 };
-    const rank = (row: typeof a) => {
-      const cls = classify(row.original.pqc_support);
-      if (cls === "affirmative" || cls === "connection_state_affirmative") {
-        return order.affirmative;
-      }
-      if (cls === "explicit_negative" || cls === "connection_state_negative") {
-        return order.explicit_negative;
-      }
-      return order.unknown;
-    };
-    return rank(a) - rank(b);
-  },
-});
-
 const issuerColumn = col.accessor("cert_issuer_cn", {
   header: "Issuer",
   size: 160,
@@ -288,7 +255,6 @@ export function buildDomainColumns(scan_list: ScanList) {
   const tail = [
     tlsColumn,
     kxColumn,
-    pqcColumn,
     issuerColumn,
     expiryColumn,
   ];

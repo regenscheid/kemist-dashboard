@@ -14,7 +14,7 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "./dexie";
-import { ensureDomainsSeeded, loadScansIndex } from "./loader";
+import { ensureDomainsSeeded, loadScanManifest, loadScansIndex } from "./loader";
 import type { DomainRow } from "../data/domainRow";
 import type { ScanList } from "../data/scanList";
 
@@ -36,7 +36,7 @@ export type SeedStatus =
 /**
  * Resolve the "latest" scan date for a specific scan_list. Returns
  * `null` before the list is fetched and again if that list has no
- * scans yet (e.g. top-20k before the first monthly run).
+ * scans yet.
  */
 export function useLatestScanDate(
   scan_list: ScanList | null,
@@ -128,6 +128,17 @@ export function useScanProvenance(
   scan_list: ScanList | null,
 ): ScanProvenance {
   const scan_date = useLatestScanDate(scan_list);
+
+  useEffect(() => {
+    if (!scan_date || !scan_list) return;
+    (async () => {
+      try {
+        await loadScanManifest(scan_date, scan_list);
+      } catch {
+        // Keep rendering placeholders if the manifest is unavailable.
+      }
+    })();
+  }, [scan_date, scan_list]);
 
   const scanEntry = useLiveQuery(() => {
     if (!scan_date || !scan_list) return undefined;

@@ -80,7 +80,7 @@ export type DomainRow = {
    */
   pqc_support: TriStateObservation;
 
-  /** `certificates.leaf.is_pqc_signature` verbatim (scalar bool). */
+  /** Derived from the normalized primary certificate leaf. */
   pqc_signature: boolean;
 
   cert_issuer_cn: string | null;

@@ -43,4 +43,11 @@ describe("SCAN_LIST_LABELS", () => {
       expect(label.short).toBeTruthy();
     }
   });
+
+  it("uses the public top-20k websites label", () => {
+    expect(SCAN_LIST_LABELS["top20k-sfw"]).toMatchObject({
+      display: "Top 20k Websites",
+      cadence: "weekly",
+    });
+  });
 });

@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { render, screen, within } from "@testing-library/react";
-import type { KemistScanResultSchemaV2 } from "../../data/schema";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import type {
+  CipherSuiteEntry,
+  KemistScanResultSchemaV2,
+} from "../../data/schema";
 import {
   BehavioralProbesSection,
   CertificatesSection,
@@ -12,10 +15,13 @@ import {
   KxGroupsSection,
   NegotiatedSection,
   ProtocolSupportSection,
+  RenegotiationBehaviorSection,
   ScanMetadataSection,
   SessionResumptionSection,
+  SniBehaviorSection,
   ValidationSection,
 } from "./sections";
+import { KxCombinedTable } from "./KxCombinedTable";
 
 // Render the committed nist.gov fixture through every section and
 // assert that the tri-state rendering is correct. Failure here means
@@ -73,6 +79,48 @@ describe("<NegotiatedSection>", () => {
   });
 });
 
+describe("<SniBehaviorSection>", () => {
+  it("renders v2.1 SNI probe rows", () => {
+    const record = structuredClone(nistRecord);
+    record.tls.sni_behavior.probes = [
+      {
+        variant: "bogus_dns",
+        sni_sent: "wrong.example",
+        outcome: "rejected",
+        reason: "unrecognized_name_alert",
+      },
+    ];
+
+    render(<SniBehaviorSection sniBehavior={record.tls.sni_behavior} />);
+
+    expect(screen.getByText("bogus_dns")).toBeInTheDocument();
+    expect(screen.getByText("wrong.example")).toBeInTheDocument();
+    expect(screen.getByText("rejected")).toBeInTheDocument();
+  });
+});
+
+describe("<RenegotiationBehaviorSection>", () => {
+  it("renders nested v2.1 renegotiation observations", () => {
+    const record = structuredClone(nistRecord);
+    record.tls.renegotiation_behavior.client_initiated = {
+      accepted: { value: false, method: "probe" },
+    };
+    record.tls.renegotiation_behavior.server_initiated = {
+      observed: { value: null, method: "not_probed", reason: "not_http" },
+    };
+
+    render(
+      <RenegotiationBehaviorSection
+        renegotiation={record.tls.renegotiation_behavior}
+      />,
+    );
+
+    expect(screen.getByText("Client-initiated accepted")).toBeInTheDocument();
+    expect(screen.getByText("Server-initiated observed")).toBeInTheDocument();
+    expect(screen.getByText(/not_http/)).toBeInTheDocument();
+  });
+});
+
 describe("<CipherSuitesSection>", () => {
   it("lists all per-version cipher sections from the unified schema", () => {
     render(<CipherSuitesSection ciphers={nistRecord.tls.cipher_suites} />);
@@ -88,6 +136,66 @@ describe("<CipherSuitesSection>", () => {
   it("surfaces server_enforces_order as its own tri-state row", () => {
     render(<CipherSuitesSection ciphers={nistRecord.tls.cipher_suites} />);
     expect(screen.getByText(/Server enforces order/)).toBeInTheDocument();
+  });
+
+  it("hides unsupported cipher suites across all versions with a reveal link", () => {
+    const record = structuredClone(nistRecord);
+    const baseCipher = record.tls.cipher_suites.tls1_3[0] as CipherSuiteEntry;
+    const supported: CipherSuiteEntry = {
+      ...baseCipher,
+      name: "TLS13_SUPPORTED_TEST_SUITE",
+      iana_code: "0x13F0",
+      supported: true,
+      method: "probe" as const,
+    };
+    const unsupported: CipherSuiteEntry = {
+      ...baseCipher,
+      name: "TLS13_UNSUPPORTED_TEST_SUITE",
+      iana_code: "0x13F1",
+      supported: false,
+      method: "probe" as const,
+    };
+    record.tls.cipher_suites = {
+      ...record.tls.cipher_suites,
+      tls1_3: [supported, unsupported],
+      tls1_2: [],
+      tls1_1: [],
+      tls1_0: [],
+    };
+
+    render(
+      <CipherSuitesSection
+        ciphers={record.tls.cipher_suites}
+        hideUnsupported
+      />,
+    );
+
+    expect(screen.getByText("TLS13_SUPPORTED_TEST_SUITE")).toBeInTheDocument();
+    expect(screen.queryByText("TLS13_UNSUPPORTED_TEST_SUITE")).toBeNull();
+    fireEvent.click(screen.getByText("Show 1 row hidden by filter"));
+    expect(screen.getByText("TLS13_UNSUPPORTED_TEST_SUITE")).toBeInTheDocument();
+  });
+});
+
+describe("<KxCombinedTable>", () => {
+  it("hides unsupported KX groups with a per-version reveal link", () => {
+    render(
+      <KxCombinedTable
+        groups={{
+          tls1_3: {
+            x25519: { supported: true, method: "probe" },
+            secp256r1: { supported: false, method: "probe" },
+          },
+          tls1_2: {},
+        }}
+        hideUnsupported
+      />,
+    );
+
+    expect(screen.getByText("x25519")).toBeInTheDocument();
+    expect(screen.queryByText("secp256r1")).toBeNull();
+    fireEvent.click(screen.getByText("Show 1 row hidden by filter"));
+    expect(screen.getByText("secp256r1")).toBeInTheDocument();
   });
 });
 
@@ -150,13 +258,31 @@ describe("<ExtensionsSection>", () => {
     expect(screen.queryByText(/GREASE echoed/)).toBeNull();
     expect(screen.queryByText(/ephemeral reuse/i)).toBeNull();
   });
+
+  it("renders the generic observed server extension inventory", () => {
+    const record = structuredClone(nistRecord);
+    record.tls.extensions.observed_server_extensions = [
+      {
+        protocol_phase: "tls1_3_encrypted_extensions",
+        extension_id: "0xFE0D",
+        extension_name: "encrypted_client_hello",
+      },
+    ];
+
+    render(<ExtensionsSection extensions={record.tls.extensions} />);
+
+    expect(screen.getByText("Observed server extensions")).toBeInTheDocument();
+    expect(screen.getByText("tls1_3_encrypted_extensions")).toBeInTheDocument();
+    expect(screen.getByText("0xFE0D")).toBeInTheDocument();
+    expect(screen.getByText("encrypted_client_hello")).toBeInTheDocument();
+  });
 });
 
 describe("<BehavioralProbesSection>", () => {
   it("renders all six behavioral-probe field labels", () => {
     render(<BehavioralProbesSection probes={nistRecord.tls.behavioral_probes} />);
     expect(screen.getByText(/Heartbleed echo/)).toBeInTheDocument();
-    expect(screen.getByText(/Compression offered/)).toBeInTheDocument();
+    expect(screen.getByText(/Record compression/)).toBeInTheDocument();
     expect(screen.getByText(/GREASE echoed/)).toBeInTheDocument();
     expect(screen.getByText(/HelloRetryRequest/)).toBeInTheDocument();
     expect(screen.getByText(/^DHE ephemeral reuse$/)).toBeInTheDocument();

@@ -1,5 +1,5 @@
 /**
- * Pure transform: schema-v1 record → denormalized `DomainRow`.
+ * Pure transform: schema-v2 record → denormalized `DomainRow`.
  *
  * Called from the Node-side fetch pipeline (`scripts/fetch-scan.ts`)
  * and potentially from client code if we ever need on-the-fly
@@ -30,6 +30,7 @@ import {
   extractValue,
   type TriStateInput,
 } from "../lib/triState";
+import { getPrimaryLeaf } from "./schemaCompat";
 
 export { PQC_HYBRID_GROUPS, PQC_STANDALONE_GROUPS } from "./kxSupport";
 
@@ -212,7 +213,7 @@ export type TransformContext = {
 };
 
 /**
- * Transform a single schema-v1 record into a flat DomainRow.
+ * Transform a single schema-v2 record into a flat DomainRow.
  *
  * Throws only on structural schema violations (missing required
  * fields beyond what json-schema-to-typescript enforces). Partial
@@ -225,7 +226,7 @@ export function toDomainRow(
 ): DomainRow {
   const { scan, tls, certificates, validation, errors, scanner } = record;
 
-  const leaf = certificates.leaf;
+  const leaf = getPrimaryLeaf(certificates);
   const negotiated = tls.negotiated;
   const supportedTlsVersions = deriveSupportedTlsVersions(tls.versions_offered);
   const didRespond = supportedTlsVersions.length > 0;

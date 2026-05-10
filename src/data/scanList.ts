@@ -6,7 +6,7 @@
  * and per-target metadata shape:
  *
  *   federal-website-index  weekly Sun 02:00 UTC, GSA-derived agency list
- *   top20k-sfw             monthly 1st 02:00 UTC, top-20k commercial
+ *   top20k-sfw             weekly, top-20k websites
  *
  * Discriminator strings are preserved verbatim from the orchestrator —
  * dashboards that try to abbreviate them tend to drift from the wire.
@@ -32,8 +32,8 @@ export const SCAN_LIST_LABELS: Record<
     short: "federal",
   },
   "top20k-sfw": {
-    display: "Top 20k commercial",
-    cadence: "monthly",
+    display: "Top 20k Websites",
+    cadence: "weekly",
     short: "top-20k",
   },
 };

@@ -9,6 +9,7 @@ import type {
   CertificateFacts,
   KemistScanResultSchemaV2,
 } from "../../data/schema";
+import { getObservedChains } from "../../data/schemaCompat";
 import { DetailSection } from "./DetailSection";
 
 type Props = {
@@ -16,20 +17,9 @@ type Props = {
 };
 
 export function CertChainCards({ certificates }: Props) {
-  const all: CertificateFacts[] = [];
-  if (certificates.leaf) all.push(certificates.leaf);
-  // chain[0] is the leaf in wire order; skip if we already pushed the
-  // duplicate via `leaf`. Otherwise (unusual, but possible) the chain
-  // array is the source of truth.
-  const skipFirst =
-    certificates.leaf && certificates.chain[0]?.fingerprint_sha256 ===
-      certificates.leaf.fingerprint_sha256;
-  for (let i = skipFirst ? 1 : 0; i < certificates.chain.length; i++) {
-    const c = certificates.chain[i];
-    if (c) all.push(c);
-  }
+  const chains = getObservedChains(certificates);
 
-  if (all.length === 0) {
+  if (chains.length === 0) {
     return (
       <DetailSection
         id="chain"
@@ -48,24 +38,60 @@ export function CertChainCards({ certificates }: Props) {
     <DetailSection
       id="chain"
       title="Certificate chain"
-      description={`${all.length} entr${all.length === 1 ? "y" : "ies"} delivered in wire order — leaf → root`}
+      description={`${chains.length} observed chain${chains.length === 1 ? "" : "s"}; each chain is shown in wire order.`}
       json={certificates}
     >
-      <div className="space-y-4">
-        {all.map((cert, idx) => (
-          <CertCard
-            key={cert.fingerprint_sha256}
-            cert={cert}
-            position={idx}
-            isLeaf={idx === 0}
-            // A cert is the root iff it's self-signed (subject == issuer).
-            // Servers usually omit the actual root from the chain they
-            // send during the handshake — the client supplies it from
-            // a trust store — so the last delivered cert is normally
-            // an intermediate, not a root. Only label it ROOT when the
-            // cert really self-signs.
-            isRoot={idx > 0 && isSelfSigned(cert)}
-          />
+      <div className="space-y-6">
+        {chains.map((chain) => (
+          <div key={chain.chain_id} className="space-y-3">
+            <header className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-[14px] font-semibold">
+                  {chain.role === "primary" ? "Primary chain" : "Alternate chain"}
+                </h3>
+                <span className="rounded-sm bg-line-2 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.05em] text-ink-2">
+                  {chain.chain_id}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5 text-[11px] text-ink-3">
+                {chain.observed_via.map((source) => (
+                  <span
+                    key={source}
+                    className="rounded-sm border border-line px-1.5 py-0.5 font-mono"
+                  >
+                    {source}
+                  </span>
+                ))}
+              </div>
+              {(chain.leaf_fingerprint_sha256 || chain.chain_fingerprint_sha256) && (
+                <dl className="grid gap-1 text-[11px] text-ink-3 sm:grid-cols-2">
+                  {chain.leaf_fingerprint_sha256 && (
+                    <KV
+                      label="Leaf FP"
+                      value={shortFingerprint(chain.leaf_fingerprint_sha256)}
+                    />
+                  )}
+                  {chain.chain_fingerprint_sha256 && (
+                    <KV
+                      label="Chain FP"
+                      value={shortFingerprint(chain.chain_fingerprint_sha256)}
+                    />
+                  )}
+                </dl>
+              )}
+            </header>
+            <div className="space-y-4">
+              {chain.chain.map((cert, idx) => (
+                <CertCard
+                  key={`${chain.chain_id}-${cert.fingerprint_sha256}-${idx}`}
+                  cert={cert}
+                  position={idx}
+                  isLeaf={idx === 0}
+                  isRoot={idx > 0 && isSelfSigned(cert)}
+                />
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     </DetailSection>
@@ -80,6 +106,17 @@ function isSelfSigned(cert: CertificateFacts): boolean {
   const subject = cert.subject_dn;
   const issuer = cert.issuer_dn;
   return !!subject && !!issuer && subject === issuer;
+}
+
+function shortFingerprint(fingerprint: string): React.ReactNode {
+  return (
+    <span
+      title={fingerprint}
+      className="block overflow-hidden text-ellipsis whitespace-nowrap font-mono"
+    >
+      {fingerprint.slice(0, 16)}...
+    </span>
+  );
 }
 
 function CertCard({

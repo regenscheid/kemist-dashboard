@@ -88,6 +88,36 @@ describe("toDomainRow", () => {
     expect(row.pqc_signature).toBe(false);
   });
 
+  it("prefers v2.1 observed_chains for primary certificate facts", () => {
+    const record = structuredClone(nistRecord);
+    const leaf = record.certificates.leaf ?? record.certificates.chain[0];
+    expect(leaf).toBeDefined();
+    if (!leaf) return;
+    record.certificates.observed_chains = [
+      {
+        chain_id: "primary",
+        role: "primary",
+        observed_via: ["characterization_handshake"],
+        chain: [
+          {
+            ...leaf,
+            issuer_cn: "Preferred Issuer",
+            not_after: "2030-01-01T00:00:00Z",
+            validity_days: 900,
+            pqc_signature_family: "ml_dsa",
+          },
+        ],
+      },
+    ];
+
+    const row = toDomainRow(record, defaultCtx());
+
+    expect(row.cert_issuer_cn).toBe("Preferred Issuer");
+    expect(row.cert_expiry).toBe("2030-01-01T00:00:00Z");
+    expect(row.cert_validity_days).toBe(900);
+    expect(row.pqc_signature).toBe(true);
+  });
+
   it("marks non-responders from versions_offered and joins distinct error categories", () => {
     const nonResponder = structuredClone(nistRecord);
     nonResponder.tls.versions_offered = {

@@ -10,6 +10,7 @@
  */
 
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 import type {
   GroupObservation,
   KemistScanResultSchemaV2,
@@ -32,6 +33,7 @@ import { DetailSection } from "./DetailSection";
 type Props = {
   groups: KemistScanResultSchemaV2["tls"]["groups"];
   hideUnknown?: boolean;
+  hideUnsupported?: boolean;
 };
 
 const FAMILY_TONE: Record<KxSupportType, string> = {
@@ -42,7 +44,23 @@ const FAMILY_TONE: Record<KxSupportType, string> = {
   ffdh: "bg-line text-ink-2",
 };
 
-export function KxCombinedTable({ groups, hideUnknown = false }: Props) {
+export function KxCombinedTable({
+  groups,
+  hideUnknown = false,
+  hideUnsupported = false,
+}: Props) {
+  const [expandedVersions, setExpandedVersions] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const toggleVersion = (title: string) => {
+    setExpandedVersions((prev) => {
+      const next = new Set(prev);
+      if (next.has(title)) next.delete(title);
+      else next.add(title);
+      return next;
+    });
+  };
+
   const bp = useBreakpoint();
   const showFamily = isAtLeast(bp, "sm");
   const showProvider = isAtLeast(bp, "md");
@@ -53,15 +71,39 @@ export function KxCombinedTable({ groups, hideUnknown = false }: Props) {
   const tls13Rows = sortEntries(groups.tls1_3);
   const tls12Rows = sortEntries(groups.tls1_2);
 
-  const filtered = (rows: typeof tls13Rows) =>
-    hideUnknown
-      ? rows.filter(
-          ([, o]) => isAffirmative(o) || isExplicitNegative(o),
-        )
-      : rows;
+  const partitionRows = (rows: typeof tls13Rows) => {
+    const kept: typeof tls13Rows = [];
+    const hidden: typeof tls13Rows = [];
+    for (const row of rows) {
+      const observation = row[1];
+      const supported = isAffirmative(observation);
+      if (hideUnsupported && !supported) {
+        hidden.push(row);
+        continue;
+      }
+      if (
+        hideUnknown &&
+        !supported &&
+        !isExplicitNegative(observation)
+      ) {
+        hidden.push(row);
+        continue;
+      }
+      kept.push(row);
+    }
+    return { kept, hidden };
+  };
 
-  const tls13Visible = filtered(tls13Rows);
-  const tls12Visible = filtered(tls12Rows);
+  const tls13 = partitionRows(tls13Rows);
+  const tls12 = partitionRows(tls12Rows);
+  const tls13Expanded = expandedVersions.has("TLS 1.3");
+  const tls12Expanded = expandedVersions.has("TLS 1.2");
+  const tls13Visible = tls13Expanded
+    ? [...tls13.kept, ...tls13.hidden]
+    : tls13.kept;
+  const tls12Visible = tls12Expanded
+    ? [...tls12.kept, ...tls12.hidden]
+    : tls12.kept;
 
   const tls13Probed = tls13Rows.length;
   const tls12Probed = tls12Rows.length;
@@ -114,10 +156,16 @@ export function KxCombinedTable({ groups, hideUnknown = false }: Props) {
           ))}
           {tls13Visible.length === 0 && tls13Probed > 0 && (
             <EmptyRow
-              message="All TLS 1.3 entries hidden by 'Hide unknown'."
+              message="All TLS 1.3 entries hidden by filter."
               colSpan={visibleColCount}
             />
           )}
+          <HiddenRowsRow
+            count={tls13.hidden.length}
+            expanded={tls13Expanded}
+            onToggle={() => toggleVersion("TLS 1.3")}
+            colSpan={visibleColCount}
+          />
 
           <SubHeaderRow
             label="TLS 1.2"
@@ -137,13 +185,51 @@ export function KxCombinedTable({ groups, hideUnknown = false }: Props) {
           ))}
           {tls12Visible.length === 0 && tls12Probed > 0 && (
             <EmptyRow
-              message="All TLS 1.2 entries hidden by 'Hide unknown'."
+              message="All TLS 1.2 entries hidden by filter."
               colSpan={visibleColCount}
             />
           )}
+          <HiddenRowsRow
+            count={tls12.hidden.length}
+            expanded={tls12Expanded}
+            onToggle={() => toggleVersion("TLS 1.2")}
+            colSpan={visibleColCount}
+          />
         </tbody>
       </table>
     </DetailSection>
+  );
+}
+
+function HiddenRowsRow({
+  count,
+  expanded,
+  onToggle,
+  colSpan,
+}: {
+  count: number;
+  expanded: boolean;
+  onToggle: () => void;
+  colSpan: number;
+}) {
+  if (count <= 0) return null;
+  const label = expanded
+    ? `Hide ${count} filtered row${count === 1 ? "" : "s"}`
+    : `Show ${count} row${count === 1 ? "" : "s"} hidden by filter`;
+
+  return (
+    <tr>
+      <td colSpan={colSpan} className="border-b border-line-2 px-3 py-2">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          className="text-left text-sm italic text-slate-500 underline-offset-2 hover:underline focus-visible:underline focus-visible:outline-none dark:text-slate-400"
+        >
+          {label}
+        </button>
+      </td>
+    </tr>
   );
 }
 

@@ -15,7 +15,7 @@ export const Route = createFileRoute("/lists/$list/domains/$target")({
     const scans = await loadScansIndex();
     const latest = scans.find((s) => s.scan_list === scanList);
     if (!latest) {
-      // No scans for this list yet (e.g. top-20k pre-first-monthly).
+      // No scans for this list yet.
       // Fall through to the empty state.
       return;
     }

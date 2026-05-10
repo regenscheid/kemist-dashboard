@@ -58,6 +58,7 @@ import {
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "..");
 const schemaPath = path.join(repoRoot, "schemas", "output-v1.json");
+const legacySchemaPath = path.join(repoRoot, "schemas", "output-v2.0.json");
 const publicDataDir = path.join(repoRoot, "public", "data");
 
 // ──────────────────────────────────────────────────────────────
@@ -597,7 +598,8 @@ async function processScan(
 async function main(): Promise<void> {
   const mode = parseArgs(process.argv.slice(2));
   const schemaJson = JSON.parse(await fs.readFile(schemaPath, "utf8"));
-  const validateRecord = buildRecordValidator(schemaJson);
+  const legacySchemaJson = JSON.parse(await fs.readFile(legacySchemaPath, "utf8"));
+  const validateRecord = buildRecordValidator(schemaJson, [legacySchemaJson]);
 
   // When --list isn't passed, process every list. When the explicit
   // list has no scans (top-20k may not have run yet), skip silently.

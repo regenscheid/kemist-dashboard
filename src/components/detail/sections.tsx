@@ -30,6 +30,11 @@ import type {
 import { TriStateText } from "../TriStateText";
 import { PQC_HYBRID_GROUPS } from "../../data/transform";
 import {
+  getCompressionBehavior,
+  getRenegotiationRows,
+  getSniProbeRows,
+} from "../../data/schemaCompat";
+import {
   classify,
   extractValue,
   isNotProbed,
@@ -257,15 +262,124 @@ export function NegotiatedSection({
   );
 }
 
+// ── SNI behavior ────────────────────────────────────────────────
+
+export function SniBehaviorSection({
+  sniBehavior,
+  hideNotProbed = false,
+}: {
+  sniBehavior: KemistScanResultSchemaV2["tls"]["sni_behavior"];
+} & FilterProps) {
+  const rows = getSniProbeRows(sniBehavior);
+  const [expanded, toggle] = useSectionExpand();
+  const hidden = hideNotProbed
+    ? rows.filter((row) => row.outcome === "not_probed").length
+    : 0;
+  const visibleRows =
+    hideNotProbed && !expanded
+      ? rows.filter((row) => row.outcome !== "not_probed")
+      : rows;
+
+  return (
+    <DetailSection id="sni" title="SNI behavior" json={sniBehavior}>
+      {visibleRows.length === 0 ? (
+        <p className="text-sm italic text-slate-500 dark:text-slate-400">
+          All SNI probe rows hidden by filter.
+        </p>
+      ) : (
+        <table className="min-w-full text-sm">
+          <thead className="text-left text-slate-500">
+            <tr>
+              <th className="py-1 pr-4 font-medium">Variant</th>
+              <th className="py-1 pr-4 font-medium">SNI sent</th>
+              <th className="py-1 pr-4 font-medium">Outcome</th>
+              <th className="py-1 pr-4 font-medium">Leaf fingerprint</th>
+              <th className="py-1 font-medium">Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleRows.map((row) => (
+              <tr
+                key={row.variant}
+                className="border-t border-slate-100 dark:border-slate-800"
+              >
+                <td className="py-1 pr-4">
+                  <code className="text-xs">{row.variant}</code>
+                </td>
+                <td className="py-1 pr-4">{row.sni_sent ?? "—"}</td>
+                <td className="py-1 pr-4">
+                  <code className="text-xs">{row.outcome}</code>
+                </td>
+                <td className="py-1 pr-4">
+                  {row.leaf_fingerprint_sha256 ? (
+                    <code className="break-all text-xs">
+                      {row.leaf_fingerprint_sha256.slice(0, 16)}...
+                    </code>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+                <td className="py-1">{row.reason ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <HiddenRowsHint
+        count={hidden}
+        expanded={expanded}
+        onToggle={toggle}
+      />
+    </DetailSection>
+  );
+}
+
+// ── Renegotiation behavior ──────────────────────────────────────
+
+export function RenegotiationBehaviorSection({
+  renegotiation,
+  hideNotProbed = false,
+}: {
+  renegotiation: KemistScanResultSchemaV2["tls"]["renegotiation_behavior"];
+} & FilterProps) {
+  const [expanded, toggle] = useSectionExpand();
+  const rows = getRenegotiationRows(renegotiation).map((row) => [
+    row.label,
+    row.observation,
+    <TriStateText observation={row.observation} />,
+  ] as [string, typeof row.observation, React.ReactNode]);
+  const filtered = filterTriRows(rows, hideNotProbed);
+  const visibleRows = expanded ? rows : filtered.kept;
+
+  return (
+    <DetailSection
+      id="renegotiation"
+      title="Renegotiation behavior"
+      json={renegotiation}
+    >
+      <FieldGrid>
+        {visibleRows.map(([label, , value]) => (
+          <Field key={label} label={label} value={value} />
+        ))}
+      </FieldGrid>
+      <HiddenRowsHint
+        count={filtered.hidden}
+        expanded={expanded}
+        onToggle={toggle}
+      />
+    </DetailSection>
+  );
+}
+
 // ── Cipher suites ────────────────────────────────────────────────
 
 export function CipherSuitesSection({
   ciphers,
   hideNotProbed = false,
-  hideUnsupportedLegacy = false,
+  hideUnsupported = false,
 }: {
   ciphers: KemistScanResultSchemaV2["tls"]["cipher_suites"];
-  hideUnsupportedLegacy?: boolean;
+  hideUnsupported?: boolean;
 } & FilterProps) {
   // Per-version expand state — each TLS version's filtered list
   // can be unfolded independently, since a typical user wants to
@@ -284,13 +398,10 @@ export function CipherSuitesSection({
 
   // Always splits into kept/hidden under the current filter state
   // (regardless of expansion), so the hint can show a stable count.
-  // - hideUnsupportedLegacy: drops legacy (≤ TLS 1.2) entries that are not
-  //   observed-supported. TLS 1.3 never touched by this filter.
-  //   Legacy entries that ARE supported stay visible (real findings).
+  // - hideUnsupported: drops any entry that is not observed-supported.
   // - hideNotProbed: drops entries where method == not_probed.
   function partitionEntries(
     entries: CipherSuiteEntry[],
-    isLegacy: boolean,
   ): { kept: CipherSuiteEntry[]; hidden: CipherSuiteEntry[] } {
     const kept: CipherSuiteEntry[] = [];
     const hidden: CipherSuiteEntry[] = [];
@@ -298,7 +409,7 @@ export function CipherSuitesSection({
       const c = classify(entry);
       const isAffirmative =
         c === "affirmative" || c === "connection_state_affirmative";
-      if (hideUnsupportedLegacy && isLegacy && !isAffirmative) {
+      if (hideUnsupported && !isAffirmative) {
         hidden.push(entry);
         continue;
       }
@@ -312,13 +423,13 @@ export function CipherSuitesSection({
   }
 
   const versionGroups = [
-    { title: "TLS 1.3", entries: ciphers.tls1_3, isLegacy: false },
-    { title: "TLS 1.2", entries: ciphers.tls1_2, isLegacy: true },
-    { title: "TLS 1.1", entries: ciphers.tls1_1, isLegacy: true },
-    { title: "TLS 1.0", entries: ciphers.tls1_0, isLegacy: true },
+    { title: "TLS 1.3", entries: ciphers.tls1_3 },
+    { title: "TLS 1.2", entries: ciphers.tls1_2 },
+    { title: "TLS 1.1", entries: ciphers.tls1_1 },
+    { title: "TLS 1.0", entries: ciphers.tls1_0 },
   ]
     .map((group) => {
-      const { kept, hidden } = partitionEntries(group.entries, group.isLegacy);
+      const { kept, hidden } = partitionEntries(group.entries);
       const isExpanded = expandedVersions.has(group.title);
       return {
         ...group,
@@ -335,7 +446,7 @@ export function CipherSuitesSection({
     !hideNotProbed || !isNotProbed(ciphers.server_enforces_order);
 
   return (
-    <DetailSection title="Cipher suites" json={ciphers}>
+    <DetailSection id="cipher-suites" title="Cipher suites" json={ciphers}>
       <div className="space-y-4">
         {versionGroups.length === 0 ? (
           <p className="text-sm text-slate-500">No cipher-suite probe data recorded.</p>
@@ -746,6 +857,13 @@ export function ExtensionsSection({
     hideNotProbed && !expanded
       ? triRows.filter((row) => !isNotProbed(row.observation))
       : triRows;
+  const observedServerExtensions = [
+    ...(extensions.observed_server_extensions ?? []),
+  ].sort((left, right) =>
+    `${left.protocol_phase}:${left.extension_id}`.localeCompare(
+      `${right.protocol_phase}:${right.extension_id}`,
+    ),
+  );
 
   return (
     <DetailSection title="Extensions" json={extensions}>
@@ -796,6 +914,36 @@ export function ExtensionsSection({
           }
         />
       </FieldGrid>
+      {observedServerExtensions.length > 0 && (
+        <div className="mt-4">
+          <h3 className="text-sm font-semibold">Observed server extensions</h3>
+          <table className="mt-1 min-w-full text-sm">
+            <thead className="text-left text-slate-500">
+              <tr>
+                <th className="py-1 pr-4 font-medium">Protocol phase</th>
+                <th className="py-1 pr-4 font-medium">ID</th>
+                <th className="py-1 font-medium">Name</th>
+              </tr>
+            </thead>
+            <tbody>
+              {observedServerExtensions.map((extension) => (
+                <tr
+                  key={`${extension.protocol_phase}-${extension.extension_id}-${extension.extension_name}`}
+                  className="border-t border-slate-100 dark:border-slate-800"
+                >
+                  <td className="py-1 pr-4">
+                    <code className="text-xs">{extension.protocol_phase}</code>
+                  </td>
+                  <td className="py-1 pr-4">
+                    <code className="text-xs">{extension.extension_id}</code>
+                  </td>
+                  <td className="py-1">{extension.extension_name}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <HiddenRowsHint
         count={stableHidden}
         expanded={expanded}
@@ -810,7 +958,7 @@ export function ExtensionsSection({
 // Schema v2 split these out of `tls.extensions`: they aren't TLS
 // extensions in the RFC sense, they're vulnerability probes
 // (Heartbleed, Raccoon, ROBOT), ClientHello-body fields predating
-// the extension framework (compression_offered), ServerHello
+// the extension framework (record compression), ServerHello
 // variants (HRR), and conformance checks (GREASE echo).
 //
 // Polarity varies per field — `true` means vulnerable for
@@ -883,23 +1031,34 @@ function HeartbleedRow({
 }
 
 function CompressionRow({
-  offered,
+  probes,
 }: {
-  offered: KemistScanResultSchemaV2["tls"]["behavioral_probes"]["compression_offered"];
+  probes: KemistScanResultSchemaV2["tls"]["behavioral_probes"];
 }) {
-  // RFC 7457 §2.1: any non-empty list is CRIME-vulnerable.
-  if (offered.length === 0) {
-    return (
-      <div className="flex flex-wrap items-center gap-2">
-        <VerdictPill tone="good">None offered</VerdictPill>
-      </div>
-    );
-  }
+  const compression = getCompressionBehavior(probes);
+  const vulnerable = extractValue(compression.vulnerable);
+  const tone: BehavioralVerdictTone =
+    vulnerable === true ? "bad" : vulnerable === false ? "good" : "neutral";
+  const selected = compression.selected ?? "none";
+  const verdict =
+    vulnerable === true
+      ? `CRIME-vulnerable: ${selected}`
+      : vulnerable === false
+        ? `No record compression selected (${selected})`
+        : compression.vulnerable.method === "not_probed"
+          ? "Not probed"
+          : "Unknown";
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <VerdictPill tone="bad">
-        CRIME-vulnerable: {offered.join(", ")}
-      </VerdictPill>
+      <VerdictPill tone={tone}>{verdict}</VerdictPill>
+      {methodBadge(compression.vulnerable.method, compression.vulnerable.reason)}
+      {compression.by_version.length > 0 && (
+        <span className="text-xs text-slate-500 dark:text-slate-400">
+          by version: {compression.by_version
+            .map((row) => `${row.version}:${row.compression_selected ?? "none"}`)
+            .join(", ")}
+        </span>
+      )}
     </div>
   );
 }
@@ -1074,8 +1233,8 @@ export function BehavioralProbesSection({
           <Field key={row.label} label={row.label} value={row.node} />
         ))}
         <Field
-          label="Compression offered"
-          value={<CompressionRow offered={probes.compression_offered} />}
+          label="Record compression"
+          value={<CompressionRow probes={probes} />}
         />
       </FieldGrid>
       {showBleichenbacher && (
@@ -1660,7 +1819,9 @@ export function SignatureAlgorithmPolicyProbeSection({
               <th className="py-1 pr-4 font-medium">Outcome</th>
               <th className="py-1 pr-4 font-medium">Selected sigalg</th>
               <th className="py-1 pr-4 font-medium">Alert</th>
-              <th className="py-1 font-medium">Leaf fingerprint</th>
+              <th className="py-1 pr-4 font-medium">Leaf fingerprint</th>
+              <th className="py-1 pr-4 font-medium">Chain fingerprint</th>
+              <th className="py-1 font-medium">Leaf subject</th>
             </tr>
           </thead>
           <tbody>
@@ -1677,14 +1838,26 @@ export function SignatureAlgorithmPolicyProbeSection({
                   </td>
                   <td className="py-1 pr-4">{slot.selected_sigalg ?? "—"}</td>
                   <td className="py-1 pr-4">{slot.alert ?? "—"}</td>
-                  <td className="py-1">
+                  <td className="py-1 pr-4">
                     {slot.leaf_fingerprint_sha256 ? (
                       <code className="break-all text-xs">
-                        {slot.leaf_fingerprint_sha256.slice(0, 16)}…
+                        {slot.leaf_fingerprint_sha256.slice(0, 16)}...
                       </code>
                     ) : (
                       "—"
                     )}
+                  </td>
+                  <td className="py-1 pr-4">
+                    {slot.chain_fingerprint_sha256 ? (
+                      <code className="break-all text-xs">
+                        {slot.chain_fingerprint_sha256.slice(0, 16)}...
+                      </code>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="max-w-[24rem] break-words py-1">
+                    {slot.leaf_subject_dn ?? "—"}
                   </td>
                 </tr>
               );

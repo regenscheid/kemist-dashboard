@@ -2,7 +2,7 @@
  * IndexedDB cache — Dexie wrapper.
  *
  * Schema v2 (orchestrator-contract rev) extends the keys with
- * `scan_list` so the federal weekly and top-20k monthly corpora
+ * `scan_list` so the federal and top-20k corpora
  * share one DB without colliding:
  *
  *   meta        - key/value store for small singletons

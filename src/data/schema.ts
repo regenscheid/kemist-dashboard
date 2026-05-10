@@ -48,6 +48,16 @@ export type ObservationBool = {
   reason?: string;
 };
 /**
+ * RFC 8449 — TLS 1.3 record_size_limit. `value` is populated only when the server sends the extension; the current build normally emits `{value: null, method: not_probed, reason: client_offer_unsupported_in_current_build}` because neither pinned TLS stack can emit the required client offer.
+ */
+export type ObservationU16 = {
+  [k: string]: unknown;
+} & {
+  value: number | null;
+  method: Method;
+  reason?: string;
+};
+/**
  * Heartbleed (CVE-2014-0160) probe. `true` = server echoed our oversized-payload heartbeat back, leaking adjacent memory bytes. `false` = server correctly bounds-checked. Distinct from `extensions.heartbeat_present`, which records whether the *extension* itself is advertised.
  */
 export type ObservationBool1 = {
@@ -58,7 +68,7 @@ export type ObservationBool1 = {
   reason?: string;
 };
 /**
- * RFC 8701 GREASE echo-detection. `true` = server echoed an unknown extension (protocol violation; non-conformant ClientHello parser). `false` = server correctly ignored the GREASE extension we injected.
+ * CRIME-style record-compression verdict derived from `compression_selected`. `true` means the server selected a non-null TLS record-compression method from the scanner's offer.
  */
 export type ObservationBool2 = {
   [k: string]: unknown;
@@ -68,7 +78,7 @@ export type ObservationBool2 = {
   reason?: string;
 };
 /**
- * RFC 8446 §4.1.3 HelloRetryRequest observation — a ServerHello *variant* (random == sentinel), not an extension. `true` = the dedicated TLS 1.3 ClientHello probe (empty `key_share`) saw a ServerHello whose random matched the HRR sentinel — RFC 8446 conformant. `false` = server responded with a regular ServerHello. `not_applicable` when TLS 1.3 isn't supported on the host.
+ * RFC 8701 GREASE echo-detection. `true` = server echoed an unknown extension (protocol violation; non-conformant ClientHello parser). `false` = server correctly ignored the GREASE extension we injected.
  */
 export type ObservationBool3 = {
   [k: string]: unknown;
@@ -78,7 +88,7 @@ export type ObservationBool3 = {
   reason?: string;
 };
 /**
- * Functional RFC 5077 ticket resumption test. The probe captures the session from a first TLS 1.2 handshake and presents it via SSL_set_session on a fresh second handshake; `true` = server accepted the ticket and resumed (SSL_session_reused). Distinct from `session_ticket_issued` (issuance only).
+ * RFC 8446 §4.1.3 HelloRetryRequest observation — a ServerHello *variant* (random == sentinel), not an extension. `true` = the dedicated TLS 1.3 ClientHello probe (empty `key_share`) saw a ServerHello whose random matched the HRR sentinel — RFC 8446 conformant. `false` = server responded with a regular ServerHello. `not_applicable` when TLS 1.3 isn't supported on the host.
  */
 export type ObservationBool4 = {
   [k: string]: unknown;
@@ -88,9 +98,19 @@ export type ObservationBool4 = {
   reason?: string;
 };
 /**
- * Functional RFC 5246 §F.1.4 session-ID resumption test. Same shape as `session_ticket_resumption_accepted` but with SSL_OP_NO_TICKET set on both handshakes so the server falls back to session-ID caching. `true` = server accepted the previously-issued session ID and resumed; `false` = server issued an ID but didn't accept it back (the classic 'IDs assigned but not accepted' pattern).
+ * Functional RFC 5077 ticket resumption test. The probe captures the session from a first TLS 1.2 handshake and presents it via SSL_set_session on a fresh second handshake; `true` = server accepted the ticket and resumed (SSL_session_reused). Distinct from `session_ticket_issued` (issuance only).
  */
 export type ObservationBool5 = {
+  [k: string]: unknown;
+} & {
+  value: boolean | null;
+  method: Method;
+  reason?: string;
+};
+/**
+ * Functional RFC 5246 §F.1.4 session-ID resumption test. Same shape as `session_ticket_resumption_accepted` but with SSL_OP_NO_TICKET set on both handshakes so the server falls back to session-ID caching. `true` = server accepted the previously-issued session ID and resumed; `false` = server issued an ID but didn't accept it back (the classic 'IDs assigned but not accepted' pattern).
+ */
+export type ObservationBool6 = {
   [k: string]: unknown;
 } & {
   value: boolean | null;
@@ -111,8 +131,8 @@ export type ChannelBindingValue = {
 /**
  * One record per scanned target. See docs/OUTPUT_SCHEMA.md for field-by-field semantics. Tri-state: {value: false, method: probe} is a real negative, {value: null, method: not_probed|not_applicable|error} is an absence of signal — downstream rule engines MUST distinguish these.
  */
-export interface KemistScanResultSchemaV2 {
-  schema_version: "2.0.0";
+export interface KemistScanResultSchemaV21 {
+  schema_version: "2.1.0";
   scanner: {
     name: string;
     version: string;
@@ -174,7 +194,7 @@ export interface KemistScanResultSchemaV2 {
       };
     };
     /**
-     * True TLS extensions per RFC 5246 §7.4.1.4 / RFC 8446 §4.2 — fields that ride in the `extensions` block of ClientHello / ServerHello / EncryptedExtensions. Schema v2.0 split non-extension handshake observations (vulnerability probes, ClientHello-body fields, ServerHello variants) out of this block into `behavioral_probes`.
+     * True TLS extensions per RFC 5246 §7.4.1.4 / RFC 8446 §4.2 — fields that ride in the `extensions` block of ClientHello / ServerHello / EncryptedExtensions. Schema v2.0 split non-extension handshake observations (vulnerability probes, ClientHello-body fields, ServerHello variants) out of this block into `behavioral_probes`; v2.1 adds generic observed_server_extensions coverage.
      */
     extensions: {
       ems: ObservationBool;
@@ -209,11 +229,16 @@ export interface KemistScanResultSchemaV2 {
        */
       max_fragment_length?: string;
       /**
-       * RFC 8449 — observed in TLS 1.3 EncryptedExtensions. Populated when the OpenSSL-backed EE probe (feature `legacy-probes`) completed a TLS 1.3 handshake and the server advertised the extension.
+       * Generic inventory of server-side TLS extensions observed in ServerHello / EncryptedExtensions / CertificateEntry / CertificateRequest messages. Specific facts remain surfaced in named fields.
        */
-      record_size_limit?: number;
+      observed_server_extensions?: {
+        protocol_phase: string;
+        extension_id: string;
+        extension_name: string;
+      }[];
+      record_size_limit: ObservationU16;
       /**
-       * RFC 8879 — server-advertised certificate compression algorithms. Populated via the OpenSSL EncryptedExtensions probe.
+       * RFC 8879 — certificate-compression algorithms observed when the server sends a TLS 1.3 CompressedCertificate after kemist offers support. Canonical names: zlib, brotli, zstd; 0xNNNN for unknown codepoints.
        */
       compress_certificate_algorithms?: string[];
       /**
@@ -236,16 +261,28 @@ export interface KemistScanResultSchemaV2 {
       };
     };
     /**
-     * Non-extension handshake observations — active vulnerability probes (Heartbleed payload echo, ephemeral-key reuse / Raccoon, ROBOT) plus ClientHello-body / ServerHello-variant signals (`compression_offered`, `hello_retry_request`, `grease_echoed`). Schema v2.0 split these out of `extensions`. Polarity (whether `true` is good or bad) varies per field; the scanner records facts and downstream rule engines interpret.
+     * Non-extension handshake observations — active vulnerability probes (Heartbleed payload echo, ephemeral-key reuse / Raccoon, ROBOT) plus ClientHello-body / ServerHello-variant signals (`compression_selected`, `crime_vulnerable`, `hello_retry_request`, `grease_echoed`). Schema v2.0 split these out of `extensions`. Polarity (whether `true` is good or bad) varies per field; the scanner records facts and downstream rule engines interpret.
      */
     behavioral_probes: {
       heartbeat_echoes_oversized_payload: ObservationBool1;
       /**
-       * Compression methods echoed by the server in the ServerHello `compression_methods` field (RFC 5246 §7.4.1.3 — body field, not an extension). Non-empty list = CRIME-vulnerable configuration (RFC 7457 §2.1).
+       * Record-layer compression method selected by the server in the primary ServerHello `compression_method` field (RFC 5246 §7.4.1.3 — body field, not an extension). `null` means the probe did not reach a parseable ServerHello; the string value `null` means the server selected no compression.
        */
-      compression_offered: string[];
-      grease_echoed: ObservationBool2;
-      hello_retry_request: ObservationBool3;
+      compression_selected: string | null;
+      crime_vulnerable: ObservationBool2;
+      /**
+       * Version-specific record-compression probes for supported SSLv3 through TLS 1.2 versions, so older-version compression is visible even when the primary TLS 1.2-style ClientHello negotiates a safer version.
+       */
+      record_compression_by_version: {
+        version: "SSLv3" | "TLSv1.0" | "TLSv1.1" | "TLSv1.2";
+        /**
+         * Record-layer compression method selected by the server for this version, or null when the version-specific probe did not parse a ServerHello.
+         */
+        compression_selected: string | null;
+        crime_vulnerable: ObservationBool;
+      }[];
+      grease_echoed: ObservationBool3;
+      hello_retry_request: ObservationBool4;
       /**
        * Ephemeral DH/ECDH public-value reuse observation (Raccoon signal, CVE-2020-1968). For each family the scanner runs two sequential TLS 1.2 handshakes against a supported suite and compares the server's ephemeral public value byte-for-byte. `true` = the server reused its ephemeral key across fresh handshakes; `false` = distinct keys; `not_probed` when no suite in the family was observed supported.
        */
@@ -299,16 +336,72 @@ export interface KemistScanResultSchemaV2 {
       tls13_downgrade_sentinel?: "tls12" | "lte_tls11" | "none";
     };
     sni_behavior: {
-      omitted_probe?: "same_cert" | "different_cert" | "rejected" | "error" | null;
+      /**
+       * @deprecated
+       * Deprecated compatibility field; prefer probes[] entry with variant=omitted. Planned removal in schema v3.
+       */
+      omitted_probe?: "same_cert" | "different_cert" | "rejected" | "error" | "not_probed" | null;
+      /**
+       * @deprecated
+       * Deprecated compatibility field for omitted_probe; prefer probes[] entry with variant=omitted. Planned removal in schema v3.
+       */
       method: Method;
+      /**
+       * @deprecated
+       * Deprecated compatibility field for omitted_probe; prefer probes[] entry with variant=omitted. Planned removal in schema v3.
+       */
       reason?: string;
+      probes?: {
+        variant: "omitted" | "bogus_dns" | "ip_literal";
+        sni_sent?: string | null;
+        outcome: "same_cert" | "different_cert" | "rejected" | "error" | "not_probed";
+        leaf_fingerprint_sha256?: string;
+        reason?: string;
+      }[];
     };
     dh_parameters: DhParametersObservation[];
     server_key_exchange_signatures: SkeSigObservation[];
+    /**
+     * OpenSSL-backed TLS 1.2 renegotiation observations. Client-initiated probe actively requests renegotiation; server-initiated observation passively waits after a minimal HTTP request and does not force application-specific triggers.
+     */
     renegotiation_behavior: {
+      /**
+       * Preferred client-initiated renegotiation observation. This replaces the older client_initiated_verdict/method/reason trio for new consumers.
+       */
+      client_initiated?: {
+        accepted: ObservationBool;
+      };
+      /**
+       * Preferred server-initiated renegotiation observation. This replaces the older server_initiated_observed/server_initiated_probe_reason pair for new consumers.
+       */
+      server_initiated?: {
+        observed: ObservationBool;
+      };
+      /**
+       * @deprecated
+       * Deprecated compatibility field; prefer client_initiated.accepted. Planned removal in schema v3.
+       */
       client_initiated_verdict?: "accepted" | "rejected" | "not_attempted" | "error" | null;
+      /**
+       * @deprecated
+       * Deprecated compatibility field for client_initiated_verdict; prefer client_initiated.accepted.method. Planned removal in schema v3.
+       */
       method: Method;
+      /**
+       * @deprecated
+       * Deprecated compatibility field for client_initiated_verdict; prefer client_initiated.accepted.reason. Planned removal in schema v3.
+       */
       reason?: string;
+      /**
+       * @deprecated
+       * Deprecated compatibility field; prefer server_initiated.observed. Planned removal in schema v3.
+       */
+      server_initiated_observed: ObservationBool;
+      /**
+       * @deprecated
+       * Deprecated compatibility field; prefer server_initiated.observed.reason. Planned removal in schema v3.
+       */
+      server_initiated_probe_reason?: string;
     };
     session_resumption: SessionResumption;
     signature_algorithm_policy_probe: SigalgPolicyProbe;
@@ -317,12 +410,28 @@ export interface KemistScanResultSchemaV2 {
       certificate_types?: number[];
       signature_algorithms?: string[];
       ca_distinguished_names?: {
+        /**
+         * Preferred hex-encoded DER distinguished name bytes.
+         */
+        raw_der_hex?: string;
+        /**
+         * @deprecated
+         * Deprecated misnamed compatibility field. It contains hex, not base64; prefer raw_der_hex. Planned removal in schema v3.
+         */
         raw_der_b64: string;
         common_name?: string;
         organization?: string;
       }[];
       oid_filters?: {
         oid: string;
+        /**
+         * Preferred hex-encoded DER OID filter values.
+         */
+        values_hex?: string[];
+        /**
+         * @deprecated
+         * Deprecated misnamed compatibility field. Values contain hex, not base64; prefer values_hex. Planned removal in schema v3.
+         */
         values_b64: string[];
       }[];
       alert_on_empty_cert?: string | null;
@@ -350,9 +459,30 @@ export interface KemistScanResultSchemaV2 {
     }[];
   };
   certificates: {
+    /**
+     * Preferred schema-2.1+ chain observation list. Contains the primary characterization chain and alternate chains observed by constrained probes. New consumers should prefer this over leaf/chain/chain_length/alternates.
+     */
+    observed_chains?: CertificateChainObservation[];
+    /**
+     * @deprecated
+     * Deprecated compatibility field; prefer observed_chains[] primary entry chain[0]. Planned removal in schema v3.
+     */
     leaf?: CertificateFacts;
+    /**
+     * @deprecated
+     * Deprecated compatibility field; prefer observed_chains[] primary entry chain. Planned removal in schema v3.
+     */
     chain: CertificateFacts[];
+    /**
+     * @deprecated
+     * Deprecated compatibility field; prefer observed_chains[] primary entry chain.length. Planned removal in schema v3.
+     */
     chain_length: number;
+    /**
+     * @deprecated
+     * Deprecated compatibility field for alternate chains; prefer observed_chains[] entries with role=alternate. Planned removal in schema v3.
+     */
+    alternates?: CertificateAlternate[];
   };
   validation: {
     chain_valid_to_webpki_roots: ObservationBool;
@@ -367,6 +497,10 @@ export interface KemistScanResultSchemaV2 {
       [k: string]: ObservationBool;
     };
     name_matches_sni: ObservationBool;
+    /**
+     * @deprecated
+     * Deprecated compatibility field for webpki-roots only; prefer per_store_validation_errors. Planned removal in schema v3.
+     */
     validation_error?: string | null;
     /**
      * Per-store error strings — populated only for stores whose chain-validation attempt failed. Keys are canonical store names.
@@ -473,7 +607,7 @@ export interface GroupObservation {
   iana_code?: string;
   provider?: "aws_lc_rs" | "openssl";
   /**
-   * FFDHE TLS 1.2 only. Classification of the prime the server actually returned when its behavior diverged from the codepoint we offered (or when cross-codepoint coherence determined the server isn't honoring `supported_groups`). Vocabulary mirrors `tls.dh_parameters[].classification`.
+   * FFDHE TLS 1.2 only. Classification of the prime the server actually returned when its behavior diverged from the codepoint we offered, or when cross-codepoint coherence attached the `server_does_not_honor_supported_groups` caveat to a matching row. Vocabulary mirrors `tls.dh_parameters[].classification`.
    */
   returned_group?:
     | "ffdhe2048"
@@ -532,6 +666,9 @@ export interface DhParametersObservation {
     | "custom";
   generator: number;
   prime_sha256: string;
+  /**
+   * Big-endian DH prime bytes as lowercase hex. Omitted by default; present only when the CLI uses --include-dh-raw.
+   */
   prime_raw_hex?: string;
   method: Method;
   reason?: string;
@@ -541,6 +678,9 @@ export interface SkeSigObservation {
   signature_algorithm: string;
   method: Method;
   reason?: string;
+  leaf_fingerprint_sha256?: string;
+  chain_fingerprint_sha256?: string;
+  group?: string;
 }
 /**
  * Session resumption observations. TLS 1.2 issuance + rotation + functional resumption (tickets and session-ID caching) populated via successive OpenSSL probe handshakes; TLS 1.3 PSK resumption + 0-RTT populated via a rustls-backed probe.
@@ -551,8 +691,8 @@ export interface SessionResumption {
     ticket_lifetime_hint_secs?: number;
     session_id_issued: ObservationBool;
     ticket_rotated_across_connections: ObservationBool;
-    session_ticket_resumption_accepted: ObservationBool4;
-    session_id_resumption_accepted: ObservationBool5;
+    session_ticket_resumption_accepted: ObservationBool5;
+    session_id_resumption_accepted: ObservationBool6;
   };
   tls1_3: {
     new_session_ticket_count?: number;
@@ -587,9 +727,30 @@ export interface ConstrainedProbeResult {
    */
   leaf_fingerprint_sha256?: string;
   /**
+   * Lowercase hex SHA-256 over concatenated DER chain bytes observed under this constraint. Populated only when the handshake completed and raw chain DER was available.
+   */
+  chain_fingerprint_sha256?: string;
+  /**
    * Subject DN of the leaf cert returned under this constraint. Same formatting as `certificates.leaf.subject_dn`. Convenience for log correlation; the authoritative identifier is `leaf_fingerprint_sha256`.
    */
   leaf_subject_dn?: string;
+}
+export interface CertificateChainObservation {
+  /**
+   * Stable local ID for this scan result, e.g. primary or alternate-<leaf-fingerprint-prefix>.
+   */
+  chain_id: string;
+  role: "primary" | "alternate";
+  /**
+   * Probe paths that observed this chain.
+   */
+  observed_via: string[];
+  leaf_fingerprint_sha256?: string;
+  /**
+   * SHA-256 over concatenated DER chain bytes when raw chain DER was available.
+   */
+  chain_fingerprint_sha256?: string;
+  chain: CertificateFacts[];
 }
 export interface CertificateFacts {
   subject_cn?: string;
@@ -625,6 +786,10 @@ export interface CertificateFacts {
      */
     rsa_exponent?: number;
   };
+  /**
+   * @deprecated
+   * Deprecated compatibility count; prefer extensions.scts[]. Planned removal in schema v3.
+   */
   embedded_scts: number;
   fingerprint_sha256: string;
   fingerprint_sha1: string;
@@ -703,3 +868,19 @@ export interface CertExtensions {
     signature_hex: string;
   }[];
 }
+export interface CertificateAlternate {
+  /**
+   * Probe paths that observed this alternate leaf/chain, for example signature_algorithm_policy.rsa_pss_only.
+   */
+  observed_via: string[];
+  leaf_fingerprint_sha256?: string;
+  chain_fingerprint_sha256?: string;
+  leaf?: CertificateFacts;
+  chain: CertificateFacts[];
+  chain_length: number;
+}
+
+/** Stable dashboard-facing alias for the generated v2.x scan record type. */
+export type KemistScanRecord = KemistScanResultSchemaV21;
+/** Back-compat alias retained for existing dashboard imports. */
+export type KemistScanResultSchemaV2 = KemistScanRecord;
