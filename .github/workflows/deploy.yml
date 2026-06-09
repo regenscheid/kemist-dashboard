@@ -6,6 +6,7 @@ on:
   # Fargate fan-out + write-manifest to land in S3.
   schedule:
     - cron: "0 4 * * SUN"
+      timezone: "America/New_York"
   # Manual re-deploys (testing, post-hotfix, scope expansion).
   workflow_dispatch:
   # Future-proof: the orchestrator can POST to GitHub's
