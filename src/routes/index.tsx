@@ -152,10 +152,10 @@ function Tls13Section({ cohorts }: { cohorts: CohortData[] }) {
           id="tls13-heading"
           className="text-[18px] font-semibold tracking-[-0.005em]"
         >
-          TLS 1.3 negotiated
+          TLS 1.3 support
         </h2>
         <p className="text-[13px] text-ink-2">
-          Server actually negotiated TLSv1_3 — not merely advertised it.
+          Share of responding hosts that offered TLS 1.3 in version probes.
         </p>
       </header>
       <CohortCompareBar

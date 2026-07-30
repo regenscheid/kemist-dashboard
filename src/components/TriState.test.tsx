@@ -115,3 +115,60 @@ describe("<TriStateText> inline", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("<TriStateText> field polarity", () => {
+  // The scanner's `value: true` means "condition observed", never "good".
+  // For negative-polarity fields (renegotiation accepted, Heartbleed
+  // overread, truncated HMAC, …) the default mapping paints the *secure*
+  // outcome red. See OUTPUT_SCHEMA.md § "Polarity is per-field".
+  it("greens an explicit negative when the field is negative-polarity", () => {
+    const { container } = render(
+      <TriStateText
+        observation={take("observation_bool_explicit_negative")}
+        polarity="negative"
+      />,
+    );
+    expect(container.querySelector("span")?.className).toContain("text-green");
+  });
+
+  it("reds an affirmative when the field is negative-polarity", () => {
+    const { container } = render(
+      <TriStateText
+        observation={take("observation_bool_affirmative")}
+        polarity="negative"
+      />,
+    );
+    expect(container.querySelector("span")?.className).toContain("text-red");
+  });
+
+  it("leaves positive-polarity fields on the default mapping", () => {
+    const { container } = render(
+      <TriStateText observation={take("observation_bool_affirmative")} />,
+    );
+    expect(container.querySelector("span")?.className).toContain("text-green");
+  });
+
+  it("does not repolarize unknown states", () => {
+    // not_probed / not_applicable / error carry no good-or-bad reading,
+    // so polarity must leave them on the neutral treatment.
+    const { container } = render(
+      <TriStateText
+        observation={take("observation_bool_not_probed")}
+        polarity="negative"
+      />,
+    );
+    expect(container.querySelector("span")?.className).toContain("text-slate");
+  });
+
+  it("substitutes per-field labels for the generic verdict words", () => {
+    render(
+      <TriStateText
+        observation={take("observation_bool_explicit_negative")}
+        polarity="negative"
+        labels={{ whenTrue: "Negotiated", whenFalse: "Not negotiated" }}
+      />,
+    );
+    expect(screen.getByText("Not negotiated")).toBeInTheDocument();
+    expect(screen.queryByText("Rejected")).not.toBeInTheDocument();
+  });
+});

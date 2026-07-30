@@ -346,7 +346,11 @@ export function RenegotiationBehaviorSection({
   const rows = getRenegotiationRows(renegotiation).map((row) => [
     row.label,
     row.observation,
-    <TriStateText observation={row.observation} />,
+    <TriStateText
+      observation={row.observation}
+      polarity={row.polarity}
+      labels={row.labels}
+    />,
   ] as [string, typeof row.observation, React.ReactNode]);
   const filtered = filterTriRows(rows, hideNotProbed);
   const visibleRows = expanded ? rows : filtered.kept;
@@ -822,14 +826,30 @@ export function ExtensionsSection({
       node: <TriStateText observation={extensions.encrypt_then_mac} />,
     },
     {
+      // Negative polarity: the heartbeat extension is attack surface
+      // (CVE-2014-0160), so absence is the better posture.
       label: "Heartbeat present",
       observation: extensions.heartbeat_present,
-      node: <TriStateText observation={extensions.heartbeat_present} />,
+      node: (
+        <TriStateText
+          observation={extensions.heartbeat_present}
+          polarity="negative"
+          labels={{ whenTrue: "Present", whenFalse: "Absent" }}
+        />
+      ),
     },
     {
+      // Negative polarity: truncated_hmac is deprecated (RFC 6066 §7);
+      // negotiating it is the worse posture, not the better one.
       label: "Truncated HMAC",
       observation: extensions.truncated_hmac,
-      node: <TriStateText observation={extensions.truncated_hmac} />,
+      node: (
+        <TriStateText
+          observation={extensions.truncated_hmac}
+          polarity="negative"
+          labels={{ whenTrue: "Negotiated", whenFalse: "Not negotiated" }}
+        />
+      ),
     },
     {
       label: "NPN",

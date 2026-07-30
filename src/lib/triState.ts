@@ -209,8 +209,39 @@ export type TriStateTone =
   | "gray" // unknown: not_probed / not_applicable
   | "amber"; // unknown: error (more attention-grabbing)
 
-export function toneFor(obs: TriStateInput): TriStateTone {
-  switch (classify(obs)) {
+/**
+ * Field polarity. The scanner's `value: true` means "the named condition
+ * was observed" — never "good". For most fields those coincide, but for a
+ * minority (see OUTPUT_SCHEMA.md § "Polarity is per-field, never uniform")
+ * `true` is the worse posture: client-initiated renegotiation accepted,
+ * Heartbleed overread, GREASE echoed, ephemeral key reuse, truncated HMAC.
+ *
+ * Mapping `true → green` globally paints the *secure* outcome red on
+ * essentially every host, because rejecting renegotiation is what a
+ * correctly configured server does.
+ */
+export type Polarity = "positive" | "negative";
+
+/**
+ * Per-field label overrides for the two definitive states. Negative-polarity
+ * fields need these: `statusLabel`'s generic "Rejected" is wrong for
+ * `truncated_hmac: false` (nothing was rejected — the extension was simply
+ * not negotiated) and actively misleading for `accepted: false`.
+ */
+export type PolarityLabels = { whenTrue?: string; whenFalse?: string };
+
+export function toneFor(
+  obs: TriStateInput,
+  polarity: Polarity = "positive",
+): TriStateTone {
+  const c = classify(obs);
+  // Only the two definitive probe states carry a good/bad reading, so
+  // polarity swaps those and leaves connection_state / unknown alone.
+  if (polarity === "negative") {
+    if (c === "affirmative") return "red";
+    if (c === "explicit_negative") return "green";
+  }
+  switch (c) {
     case "affirmative":
       return "green";
     case "explicit_negative":
@@ -302,12 +333,15 @@ export function glyphFor(obs: TriStateInput): string {
 /**
  * One-word status label for inline / compact display.
  */
-export function statusLabel(obs: TriStateInput): string {
+export function statusLabel(
+  obs: TriStateInput,
+  labels?: PolarityLabels,
+): string {
   switch (classify(obs)) {
     case "affirmative":
-      return "Supported";
+      return labels?.whenTrue ?? "Supported";
     case "explicit_negative":
-      return "Rejected";
+      return labels?.whenFalse ?? "Rejected";
     case "connection_state_affirmative":
       return "Present";
     case "connection_state_negative":

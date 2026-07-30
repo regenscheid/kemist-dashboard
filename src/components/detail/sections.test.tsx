@@ -115,9 +115,38 @@ describe("<RenegotiationBehaviorSection>", () => {
       />,
     );
 
-    expect(screen.getByText("Client-initiated accepted")).toBeInTheDocument();
-    expect(screen.getByText("Server-initiated observed")).toBeInTheDocument();
+    expect(
+      screen.getByText("Client-initiated renegotiation"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Server-initiated renegotiation"),
+    ).toBeInTheDocument();
     expect(screen.getByText(/not_http/)).toBeInTheDocument();
+  });
+
+  it("renders a refused client-initiated renegotiation as the safe outcome", () => {
+    // Negative polarity: `accepted: false` is what a correctly configured
+    // server does. The generic tri-state mapping rendered this as a red
+    // "Rejected", which read as a finding on essentially every host.
+    const record = structuredClone(nistRecord);
+    record.tls.renegotiation_behavior.client_initiated = {
+      accepted: {
+        value: false,
+        method: "probe",
+        reason: "server_sent_no_renegotiation_alert",
+      },
+    };
+
+    render(
+      <RenegotiationBehaviorSection
+        renegotiation={record.tls.renegotiation_behavior}
+      />,
+    );
+
+    const status = screen.getByText("Refused by server");
+    expect(status).toBeInTheDocument();
+    expect(screen.queryByText("Rejected")).not.toBeInTheDocument();
+    expect(status.parentElement?.className).toContain("text-green");
   });
 });
 

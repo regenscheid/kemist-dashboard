@@ -4,6 +4,7 @@ import type {
   Method,
   ObservationBool,
 } from "./schema";
+import type { Polarity, PolarityLabels } from "../lib/triState";
 
 export type NormalizedCertificateChain = {
   chain_id: string;
@@ -25,6 +26,16 @@ export type SniProbeRow = {
 export type RenegotiationRow = {
   label: string;
   observation: ObservationBool;
+  /**
+   * Both renegotiation observations are negative-polarity: `value: true`
+   * means the server allowed or performed a renegotiation, which is the
+   * worse posture. Modern servers reject client-initiated renegotiation
+   * by default (OpenSSL disabled it after CVE-2011-1473), so the generic
+   * `true → green` mapping would paint the compliant outcome red on
+   * effectively every host scanned.
+   */
+  polarity: Polarity;
+  labels: PolarityLabels;
 };
 
 type Certificates = KemistScanRecord["certificates"];
@@ -137,8 +148,20 @@ export function getRenegotiationRows(
     };
 
   return [
-    { label: "Client-initiated accepted", observation: clientObservation },
-    { label: "Server-initiated observed", observation: serverObservation },
+    {
+      label: "Client-initiated renegotiation",
+      observation: clientObservation,
+      polarity: "negative",
+      labels: { whenTrue: "Accepted", whenFalse: "Refused by server" },
+    },
+    {
+      label: "Server-initiated renegotiation",
+      observation: serverObservation,
+      polarity: "negative",
+      // "Rejected" was doubly wrong here: nothing was rejected, and the
+      // probe is passive — it only watches for a HelloRequest.
+      labels: { whenTrue: "Observed", whenFalse: "Not observed" },
+    },
   ];
 }
 

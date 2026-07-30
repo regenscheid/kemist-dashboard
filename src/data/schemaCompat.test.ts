@@ -102,12 +102,16 @@ describe("schema compatibility helpers", () => {
 
     expect(getRenegotiationRows(record.tls.renegotiation_behavior)).toEqual([
       {
-        label: "Client-initiated accepted",
+        label: "Client-initiated renegotiation",
         observation: { value: true, method: "probe" },
+        polarity: "negative",
+        labels: { whenTrue: "Accepted", whenFalse: "Refused by server" },
       },
       {
-        label: "Server-initiated observed",
+        label: "Server-initiated renegotiation",
         observation: { value: false, method: "probe" },
+        polarity: "negative",
+        labels: { whenTrue: "Observed", whenFalse: "Not observed" },
       },
     ]);
   });
@@ -128,16 +132,20 @@ describe("schema compatibility helpers", () => {
 
     expect(getRenegotiationRows(record.tls.renegotiation_behavior)).toEqual([
       {
-        label: "Client-initiated accepted",
+        label: "Client-initiated renegotiation",
         observation: { value: false, method: "probe" },
+        polarity: "negative",
+        labels: { whenTrue: "Accepted", whenFalse: "Refused by server" },
       },
       {
-        label: "Server-initiated observed",
+        label: "Server-initiated renegotiation",
         observation: {
           value: null,
           method: "not_probed",
           reason: "legacy_reason",
         },
+        polarity: "negative",
+        labels: { whenTrue: "Observed", whenFalse: "Not observed" },
       },
     ]);
   });
@@ -154,12 +162,14 @@ describe("schema compatibility helpers", () => {
     delete looseRenegotiation.server_initiated_probe_reason;
 
     expect(getRenegotiationRows(record.tls.renegotiation_behavior)[1]).toEqual({
-      label: "Server-initiated observed",
+      label: "Server-initiated renegotiation",
       observation: {
         value: null,
         method: "not_probed",
         reason: "server_initiated_renegotiation_not_recorded",
       },
+      polarity: "negative",
+      labels: { whenTrue: "Observed", whenFalse: "Not observed" },
     });
   });
 
